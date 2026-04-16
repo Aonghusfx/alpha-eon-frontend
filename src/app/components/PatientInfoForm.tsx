@@ -164,12 +164,12 @@ export function PatientInfoForm({
                 </div>
 
                 {/* Footer Actions */}
-                <div className="flex gap-4 mt-12 pt-8 border-t border-slate-100">
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-12 pt-8 border-t border-slate-100">
                     {onBack && (
                         <button
                             type="button"
                             onClick={onBack}
-                            className="h-12 px-8 flex items-center justify-center rounded-xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all"
+                            className="w-full sm:w-auto h-12 px-6 sm:px-8 flex items-center justify-center rounded-xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all"
                         >
                             Back
                         </button>
@@ -177,7 +177,7 @@ export function PatientInfoForm({
                     <button
                         type="submit"
                         disabled={isSubmitting}
-                        className="flex-1 h-12 bg-blue-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-blue-200 hover:bg-blue-700 hover:shadow-blue-300 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className="w-full sm:flex-1 min-h-12 px-4 bg-blue-600 text-white rounded-xl font-bold text-xs sm:text-sm leading-tight shadow-lg shadow-blue-200 hover:bg-blue-700 hover:shadow-blue-300 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-center whitespace-normal"
                     >
                         {isSubmitting ? (
                             <>

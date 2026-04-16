@@ -5,7 +5,11 @@ import { OrderSummary } from './OrderSummary';
 import { PaymentMethodSelector } from './PaymentMethodSelector';
 import { PaymentDetailsForm } from './PaymentDetailsForm';
 import { PatientInfoForm, type PatientInfo } from './PatientInfoForm';
-import { FinancePlanSelector } from './FinancePlanSelector';
+import { FinancePlanSelector, type UpfrontPaymentMethod } from './FinancePlanSelector';
+import { StepNavigation } from './StepNavigation';
+import { CardPaymentForm } from './ui/CardPaymentForm';
+import { BankTransferForm } from './ui/BankTransferForm';
+import { PaymentSummary } from './ui/PaymentSummary';
 import { SuccessStep } from './SuccessStep';
 import { ReceiptStep } from './ReceiptStep';
 import { FailedStep } from './FailedStep';
@@ -17,6 +21,10 @@ import { Alert, AlertDescription } from './ui/alert';
 
 export type PaymentMethod = 'full' | 'finance' | '';
 export type FinancePlan = any;
+interface PaymentWorkflowProps {
+  initialStep?: number;
+  initialPaymentMethod?: PaymentMethod;
+}
 
 export interface Plan {
   id: number;
@@ -34,11 +42,15 @@ export interface PaymentData {
   financePlan?: string; // We'll store the plan name or ID
   selectedPlanObject?: Plan;
   upfrontPayment?: number;
+  upfrontPaymentMethod?: UpfrontPaymentMethod;
   cardNumber: string;
   cardName: string;
   expiryDate: string;
   cvv: string;
   billingZip: string;
+  bankAccountName?: string;
+  bankRoutingNumber?: string;
+  bankAccountNumber?: string;
   patientInfo?: PatientInfo;
   accountNumber?: string;
   consumerCreditInstrumentId?: string;
@@ -62,12 +74,17 @@ const steps = [
   { id: 5, name: 'Complete' },
 ];
 
-export function PaymentWorkflow() {
-  const [currentStep, setCurrentStep] = useState(1);
-  const [maxStepReached, setMaxStepReached] = useState(1);
+export function PaymentWorkflow({
+  initialStep = 1,
+  initialPaymentMethod = '',
+}: PaymentWorkflowProps = {}) {
+  const safeInitialStep = Math.min(Math.max(initialStep, 1), steps.length);
+  const [currentStep, setCurrentStep] = useState(safeInitialStep);
+  const [maxStepReached, setMaxStepReached] = useState(safeInitialStep);
   const [iframeTrackingGuid, setIframeTrackingGuid] = useState<string | null>(null);
   const [paymentData, setPaymentData] = useState<any>({
-    paymentMethod: '',
+    paymentMethod: initialPaymentMethod,
+    upfrontPaymentMethod: 'card' as UpfrontPaymentMethod,
     cardNumber: '',
     cardName: '',
     expiryDate: '',
@@ -762,20 +779,42 @@ export function PaymentWorkflow() {
                       onUpfrontPaymentChange={(amount) =>
                         updatePaymentData({ upfrontPayment: amount })
                       }
+                      upfrontPaymentMethod={paymentData.upfrontPaymentMethod || 'card'}
+                      onUpfrontPaymentMethodChange={(method) =>
+                        updatePaymentData({ upfrontPaymentMethod: method })
+                      }
                       availablePlans={availablePlans}
                       isLoading={alphaeonLoading}
                     >
-                      {/* Show card details INSIDE the upfront box if upfront payment is entered */}
+                      {/* Payment Summary for upfront portion */}
                       {(paymentData.upfrontPayment || 0) > 0 && (
-                        <div className="animate-in fade-in slide-in-from-top-4 duration-500">
-                          <PaymentDetailsForm
-                            paymentData={paymentData}
-                            onUpdate={updatePaymentData}
-                            onNext={handleFinalSubmit}
-                            onBack={handleBack}
-                            isEmbedded={true}
+                        <div className="mt-8 animate-in fade-in slide-in-from-top-4 duration-500">
+                          <label className="block text-sm font-bold text-gray-500 uppercase tracking-wide mb-4">
+                            Summary
+                          </label>
+                          <PaymentSummary
+                            amount={paymentData.upfrontPayment || 0}
+                            paymentMethod={paymentData.upfrontPaymentMethod || 'card'}
                           />
                         </div>
+                      )}
+
+                      {/* Credit Card fields — shared component */}
+                      {(paymentData.upfrontPayment || 0) > 0 && (paymentData.upfrontPaymentMethod || 'card') !== 'bank' && (
+                        <CardPaymentForm
+                          data={paymentData}
+                          onUpdate={updatePaymentData}
+                          showSubmit={false}
+                        />
+                      )}
+
+                      {/* Bank Transfer fields — shared component */}
+                      {(paymentData.upfrontPayment || 0) > 0 && paymentData.upfrontPaymentMethod === 'bank' && (
+                        <BankTransferForm
+                          data={paymentData}
+                          onUpdate={updatePaymentData}
+                          showSubmit={false}
+                        />
                       )}
                     </FinancePlanSelector>
 

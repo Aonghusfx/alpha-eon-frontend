@@ -1,5 +1,8 @@
 import { DollarSign, AlertCircle } from 'lucide-react';
 import type { Plan } from './PaymentWorkflow';
+import { PaymentMethodToggle } from './ui/PaymentMethodToggle';
+
+export type UpfrontPaymentMethod = 'card' | 'bank';
 
 interface FinancePlanSelectorProps {
   selectedPlanId?: number;
@@ -7,6 +10,8 @@ interface FinancePlanSelectorProps {
   orderAmount: number;
   upfrontPayment?: number;
   onUpfrontPaymentChange: (amount: number | undefined) => void;
+  upfrontPaymentMethod?: UpfrontPaymentMethod;
+  onUpfrontPaymentMethodChange?: (method: UpfrontPaymentMethod) => void;
   availablePlans: Plan[];
   isLoading?: boolean;
   children?: React.ReactNode;
@@ -18,12 +23,15 @@ export function FinancePlanSelector({
   orderAmount,
   upfrontPayment,
   onUpfrontPaymentChange,
+  upfrontPaymentMethod = 'card',
+  onUpfrontPaymentMethodChange,
   availablePlans,
   isLoading = false,
   children
 }: FinancePlanSelectorProps) {
   const total = orderAmount;
   const remainingAmount = total - (upfrontPayment || 0);
+  const hasUpfront = (upfrontPayment || 0) > 0;
 
   const handleUpfrontPaymentChange = (value: string) => {
     const cleaned = value.replace(/[^0-9.]/g, '');
@@ -65,6 +73,20 @@ export function FinancePlanSelector({
             <p className="text-[10px] font-bold text-slate-400 mt-3 ml-1 uppercase tracking-tight">
                 Max Budget: ${(Math.max(0, total - 100)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
+
+            {/* Payment Method Selector — shown when upfront amount > 0, styled exactly like homepage */}
+            {hasUpfront && (
+              <div className="mt-5 animate-in fade-in slide-in-from-top-2 duration-300">
+                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">
+                  Pay Upfront Amount Via
+                </p>
+                <PaymentMethodToggle
+                  paymentMethod={upfrontPaymentMethod || 'card'}
+                  onMethodChange={(method) => onUpfrontPaymentMethodChange?.(method as UpfrontPaymentMethod)}
+                  showFinance={false}
+                />
+              </div>
+            )}
 
             {children && (
               <div className="mt-6 pt-6 border-t border-[#dcf2ed]">
