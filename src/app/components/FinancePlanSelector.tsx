@@ -55,7 +55,7 @@ export function FinancePlanSelector({
             <DollarSign className="w-5 h-5 text-[#2d9d78]" />
           </div>
           <div className="flex-1">
-            <h4 className="text-[15px] font-black text-slate-800 uppercase tracking-tight mb-1">Upfront Payment</h4>
+            <h4 className="text-[15px] font-black text-slate-800 uppercase tracking-tight mb-1">Upfront Payment (Optional)</h4>
 
             
             <div className="max-w-[240px] relative h-14 group">
