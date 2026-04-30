@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import { Check, AlertCircle, Loader2 } from 'lucide-react';
 import { OrderSummary } from './OrderSummary';
@@ -6,7 +6,6 @@ import { PaymentMethodSelector } from './PaymentMethodSelector';
 import { PaymentDetailsForm } from './PaymentDetailsForm';
 import { PatientInfoForm, type PatientInfo } from './PatientInfoForm';
 import { FinancePlanSelector, type UpfrontPaymentMethod } from './FinancePlanSelector';
-import { StepNavigation } from './StepNavigation';
 import { CardPaymentForm } from './ui/CardPaymentForm';
 import { BankTransferForm } from './ui/BankTransferForm';
 import { PaymentSummary } from './ui/PaymentSummary';
@@ -24,6 +23,13 @@ export type FinancePlan = any;
 interface PaymentWorkflowProps {
   initialStep?: number;
   initialPaymentMethod?: PaymentMethod;
+  externalParams?: {
+    amount: number;
+    advitalUpfrontAmount?: number;
+    advitalTransactionId?: string;
+    contactId?: string;
+    locationId?: string;
+  };
 }
 
 export interface Plan {
@@ -63,6 +69,9 @@ export interface PaymentData {
   isSignaturePending?: boolean;
   signatureLink?: string;
   cardAuthId?: string;
+  advitalUpfrontPaid?: boolean;
+  advitalChargeId?: string;
+  advitalCustomerVaultId?: string;
 }
 
 
@@ -71,20 +80,32 @@ const steps = [
   { id: 2, name: 'Patient Info' },
   { id: 3, name: 'Payment Details' },
   { id: 4, name: 'Review & Sign' },
-  { id: 5, name: 'Complete' },
+  { id: 5, name: 'Receipt' },
 ];
 
 export function PaymentWorkflow({
   initialStep = 1,
   initialPaymentMethod = '',
+  externalParams,
 }: PaymentWorkflowProps = {}) {
+  const advitalAllowedOrigin = import.meta.env.VITE_ADVITAL_ALLOWED_ORIGIN || 'https://adv-dev.vercel.app';
+  const advitalPortalBaseUrl = import.meta.env.VITE_ADVITAL_PORTAL_BASE_URL || 'https://adv-dev.vercel.app';
+  const advitalPublishableKey = import.meta.env.VITE_ADVITAL_PUBLISHABLE_KEY || 'jYjfEW-aZG66e-w8a28d-Z6F5zB';
+  const isAdvitalUpfrontApplied = !!externalParams?.advitalTransactionId;
   const safeInitialStep = Math.min(Math.max(initialStep, 1), steps.length);
   const [currentStep, setCurrentStep] = useState(safeInitialStep);
   const [maxStepReached, setMaxStepReached] = useState(safeInitialStep);
   const [iframeTrackingGuid, setIframeTrackingGuid] = useState<string | null>(null);
+  const locationId = import.meta.env.VITE_ALPHAEON_LOCATION_ID || '6594';
+  const advitalLocationId = import.meta.env.VITE_ADVITAL_LOCATION_ID || 'test123';
+
   const [paymentData, setPaymentData] = useState<any>({
     paymentMethod: initialPaymentMethod,
     upfrontPaymentMethod: 'card' as UpfrontPaymentMethod,
+    upfrontPayment: externalParams?.advitalUpfrontAmount || 0,
+    transactionId: externalParams?.advitalTransactionId || undefined,
+    advitalUpfrontPaid: !!externalParams?.advitalTransactionId,
+    advitalChargeId: externalParams?.advitalTransactionId || undefined,
     cardNumber: '',
     cardName: '',
     expiryDate: '',
@@ -99,9 +120,37 @@ export function PaymentWorkflow({
   const [isSearchingAccount, setIsSearchingAccount] = useState(false);
   const [transactionError, setTransactionError] = useState<string | null>(null);
   const [plaidVerificationUrl, setPlaidVerificationUrl] = useState<string | null>(null);
+  const [iframeApplicationStatus, setIframeApplicationStatus] = useState<string | null>(null);
+  const [showAdvitalUpfrontIframe, setShowAdvitalUpfrontIframe] = useState(false);
+
+  // Use refs to avoid stale closures in the postMessage event listener
+  const paymentDataRef = useRef(paymentData);
+  const orderAmountRef = useRef(orderAmount);
+  const locationIdRef = useRef(locationId);
+  const advitalLocationIdRef = useRef(advitalLocationId);
+
+  console.log(paymentDataRef?.current?.upfrontPayment,"paymentDataRef.current")
+
+  useEffect(() => {
+    paymentDataRef.current = paymentData;
+    orderAmountRef.current = orderAmount;
+    locationIdRef.current = locationId;
+    advitalLocationIdRef.current = advitalLocationId;
+  }, [paymentData, orderAmount, locationId, advitalLocationId]);
+
+  const updatePaymentData = (updates: Partial<PaymentData>) => {
+    setPaymentData((prev: any) => ({ ...prev, ...updates }));
+  };
 
   // Fetch initial order amount
   useEffect(() => {
+    if (externalParams?.amount) {
+      console.log(`💰 Using external amount: ${externalParams.amount}`);
+      setOrderAmount(externalParams.amount);
+      setIsOrderLoading(false);
+      return;
+    }
+
     const fetchOrder = async () => {
       try {
         const baseUrl = import.meta.env.VITE_ALPHAEON_API_URL;
@@ -123,7 +172,7 @@ export function PaymentWorkflow({
       }
     };
     fetchOrder();
-  }, []);
+  }, [externalParams]);
 
   // Alphaeon integration
   const {
@@ -147,7 +196,7 @@ export function PaymentWorkflow({
 
     const fetchPlans = async () => {
       try {
-        const response = await getFinancingPlans(remainingToFinance);
+        const response = await getFinancingPlans(remainingToFinance, locationId);
         const plansSource = response?.eligible_plans || response?.plans;
         if (response && Array.isArray(plansSource)) {
           // Deduplicate plans based on ID and Name
@@ -181,7 +230,7 @@ export function PaymentWorkflow({
           console.log(`✅ Dynamic plans loaded for $${remainingToFinance}:`, transformedPlans);
 
           // If a plan was already selected, update its details from the new fetched list
-          setPaymentData((prev:any) => {
+          setPaymentData((prev: any) => {
             if (prev.selectedPlanObject) {
               const updatedPlan = transformedPlans.find((p: Plan) => p.id === prev.selectedPlanObject?.id);
               if (updatedPlan) {
@@ -220,16 +269,17 @@ export function PaymentWorkflow({
           console.log("🔄 Background polling for account: ", paymentData.patientInfo?.ssn);
           const accounts = await alphaeonApi.lookupAccount({
             ssn: paymentData.patientInfo?.ssn,
-            zip: paymentData.patientInfo?.address.zipCode
+            zip: paymentData.patientInfo?.address.zipCode,
+            location_id: locationId
           });
 
           if (accounts && accounts.length > 0) {
             const acc = accounts[0];
             console.log("✨ Background poll FOUND account!", acc);
-            
+
             // Auto-close iframe and update data
             setIframeTrackingGuid(null);
-            
+
             updatePaymentData({
               accountNumber: acc.alphaeon_account_number,
               consumerCreditInstrumentId: acc.consumer_credit_instrument_id ? String(acc.consumer_credit_instrument_id) : undefined,
@@ -246,7 +296,7 @@ export function PaymentWorkflow({
                 phone: acc.phone || acc.mobile_phone || acc.primary_phone || paymentData.patientInfo?.phone,
               }
             });
-            
+
             toast.success("Account confirmed! You're ready to proceed.");
             setCurrentStep(3);
             setMaxStepReached(m => Math.max(m, 3));
@@ -266,6 +316,83 @@ export function PaymentWorkflow({
     };
   }, [iframeTrackingGuid, paymentData.patientInfo, paymentData.accountNumber, paymentData.consumerCreditInstrumentId]);
 
+  useEffect(() => {
+    const handleAdvitalMessage = (event: MessageEvent) => {
+      console.log('📬 Message received in PaymentWorkflow:', {
+        origin: event.origin,
+        advitalAllowedOrigin: advitalAllowedOrigin,
+        data: event.data
+      });
+      // Log all messages from the allowed origin for easier debugging
+      if (event.origin === advitalAllowedOrigin) {
+
+        console.log('📨 Advital Iframe Message:', event.data);
+      } else {
+        return;
+      }
+
+      const message = event.data;
+      if (!message || typeof message !== 'object' || !message.type) return;
+
+      const currentOrderAmount = orderAmountRef.current;
+      const currentPaymentData = paymentDataRef.current;
+      const currentAdvitalLocationId = advitalLocationIdRef.current;
+
+      if (message.type === 'advital_payment_success') {
+        console.log('✅ Advital Payment Success:', message.data);
+        const data = message.data || {};
+
+        const upfrontPaid = Number(data.upfrontAmount || 0);
+        // const remaining = Number(data.remainingBalance || (currentOrderAmount - upfrontPaid));
+
+        updatePaymentData({
+          advitalUpfrontPaid: true,
+          // upfrontPayment: upfrontPaid,
+          advitalChargeId: data.chargeId || data.transactionId || '',
+          advitalCustomerVaultId: data.customerVaultId || '',
+        });
+
+        setShowAdvitalUpfrontIframe(false);
+        toast.success('Upfront payment received!');
+      }
+
+      if (message.type === 'advital_payment_error') {
+        console.log("message.type",message.type , "hekfaemf;aefl;eamfl;emal;fma;lfm;l",message.error)
+        console.error('❌ Advital Payment Error:', message.error);
+        const errorMsg = message.error || 'Payment failed. Please try again.';
+
+        toast.error(errorMsg);
+        
+      }
+
+      if (message.type === 'advital_payment_skipped') {
+        console.log('ℹ️ Advital Payment Skipped:', message.data);
+        updatePaymentData({
+
+          advitalUpfrontPaid: true,
+          upfrontPayment: 0,
+        });
+
+        setShowAdvitalUpfrontIframe(false);
+      }
+    };
+
+    window.addEventListener('message', handleAdvitalMessage);
+    return () => window.removeEventListener('message', handleAdvitalMessage);
+  }, [advitalAllowedOrigin, updatePaymentData, externalParams?.contactId]);
+
+  useEffect(() => {
+    const toastId = 'advital-upfront-required';
+    if ((paymentData.upfrontPayment || 0) > 0 && !paymentData.advitalUpfrontPaid && currentStep === 3) {
+      toast(
+        `Complete upfront payment of $${Number(paymentData.upfrontPayment || 0).toFixed(2)} in the secure iframe first. Submit Sale will be enabled after payment confirmation.`,
+        { id: toastId, icon: 'ℹ️' }
+      );
+      return;
+    }
+    toast.dismiss(toastId);
+  }, [paymentData.upfrontPayment, paymentData.advitalUpfrontPaid, currentStep]);
+
   const handleFinalSubmit = async () => {
     setIsSearchingAccount(true);
     setTransactionError(null);
@@ -274,8 +401,34 @@ export function PaymentWorkflow({
     try {
       const data = paymentData;
       const amount = orderAmount;
-      const hasUpfrontPayment = data.paymentMethod === 'finance' && data.upfrontPayment && data.upfrontPayment > 0;
+
+      if (
+        data.paymentMethod === 'finance' &&
+        (data.upfrontPayment || 0) > 0 &&
+        !data.advitalUpfrontPaid
+      ) {
+        setShowAdvitalUpfrontIframe(true);
+        setIsSearchingAccount(false);
+        toast('Complete upfront payment in the secure iframe first.', { icon: '💳' });
+        return;
+      }
+
+      const hasUpfrontPayment =
+        data.paymentMethod === 'finance' &&
+        data.upfrontPayment &&
+        data.upfrontPayment > 0 &&
+        !data.advitalUpfrontPaid &&
+        !isAdvitalUpfrontApplied;
       let cardAuthId = "";
+
+      // Safety check for minimum finance amount
+      if (data.paymentMethod === 'finance') {
+        const financedAmount = amount - (data.upfrontPayment || 0);
+        if (financedAmount < 250) {
+          toast.error("Finance is not possible for amounts less than $250.00.");
+          return;
+        }
+      }
 
       // Phase 1: Upfront Card Payment (if applicable)
       if (data.paymentMethod === 'full' || hasUpfrontPayment) {
@@ -286,8 +439,8 @@ export function PaymentWorkflow({
 
         // Use the same base URL as Alphaeon API, but point to the payments route
         const alphaeonBaseUrl = import.meta.env.VITE_ALPHAEON_API_URL || '';
-        const apiBaseUrl = alphaeonBaseUrl.includes('/alphaeon') 
-          ? alphaeonBaseUrl.split('/alphaeon')[0] 
+        const apiBaseUrl = alphaeonBaseUrl.includes('/alphaeon')
+          ? alphaeonBaseUrl.split('/alphaeon')[0]
           : '/api';
 
         console.log(`🔌 Using API Base for card charge: ${apiBaseUrl}`);
@@ -333,7 +486,7 @@ export function PaymentWorkflow({
         console.log('🚀 Step 2: Finalizing Alphaeon Transaction...');
         toast("Step 2 of 2: Finalizing financing...", { icon: '🏦' });
 
-        const locationId = import.meta.env.VITE_ALPHAEON_LOCATION_ID || '6594';
+        // locationId is now defined at component level
 
         let instrumentId = paymentData.consumerCreditInstrumentId;
         let memberId = paymentData.accountMemberId;
@@ -356,7 +509,11 @@ export function PaymentWorkflow({
         const saleData = {
           amount: financedAmount,
           purchase_amount: totalPurchaseAmount,
-          invoice_number: cardAuthId || `ORD-${Date.now()}`,
+          invoice_number:
+            cardAuthId ||
+            data.advitalChargeId ||
+            externalParams?.advitalTransactionId ||
+            `ORD-${Date.now()}`,
           down_payment: upfrontDownPayment,
           downpayment: upfrontDownPayment,
           downpayment_amount: upfrontDownPayment,
@@ -365,7 +522,7 @@ export function PaymentWorkflow({
           account_member_id: memberId,
           plan_id: data.selectedPlanObject?.id || 1,
           identification_confirmation: { type: 'digital-receipt-embed' },
-          comment: `Payment for ${orderData?.productName || 'services'} (Includes $${upfrontDownPayment} upfront - Card Auth: ${cardAuthId || 'N/A'})`,
+          comment: `Payment for ${orderData?.productName || 'services'} (Includes $${upfrontDownPayment} upfront - Ref: ${cardAuthId || data.advitalChargeId || externalParams?.advitalTransactionId || 'N/A'})`,
           consumer_email: data.patientInfo?.email,
           consumer_phone: data.patientInfo?.phone,
           alphaeon_account_identifier: data.alphaeonAccountIdentifier,
@@ -379,7 +536,7 @@ export function PaymentWorkflow({
         }
 
         const receiptUrl = resData.receipt_url || resData.contract_signature_url || resData.digital_receipt_url || resData.url;
-        
+
         updatePaymentData({
           transactionId: resData.transaction_id || resData.id,
           isSignaturePending: true,
@@ -400,9 +557,6 @@ export function PaymentWorkflow({
     }
   };
 
-  const updatePaymentData = (updates: Partial<PaymentData>) => {
-    setPaymentData((prev:any) => ({ ...prev, ...updates }));
-  };
 
   const handleNext = () => {
     setCurrentStep((prev) => {
@@ -454,7 +608,8 @@ export function PaymentWorkflow({
       // Use service method
       const accounts = await alphaeonApi.lookupAccount({
         ssn: currentPatientInfo.ssn,
-        zip: currentPatientInfo.address.zipCode
+        zip: currentPatientInfo.address.zipCode,
+        location_id: locationId
       });
 
       if (accounts && accounts.length > 0) {
@@ -547,7 +702,7 @@ export function PaymentWorkflow({
         setPaymentData(finalizedData);
         setMaxStepReached(Math.max(maxStepReached, 3));
         setCurrentStep(3); // Plan Selection / Payment Details
-        
+
         console.log('✅ Account ready. Moving to finalization step...');
       } else {
         console.log('ℹ️ No existing accounts found. Opening application iframe...');
@@ -569,6 +724,72 @@ export function PaymentWorkflow({
     const trackingGuid = `ADV_TRANS_${Date.now()}`;
     console.log("🚀 Opening Alphaeon iframe with tracking GUID:", trackingGuid);
     setIframeTrackingGuid(trackingGuid);
+    setIframeApplicationStatus(null);
+  };
+
+  const reverifyAccount = async (ssn: string, zip: string, expectedAccountNumber?: string) => {
+    try {
+      console.log('🔍 Re-verifying account match for SSN:', ssn);
+      const accounts = await alphaeonApi.lookupAccount({ ssn, zip, location_id: locationId });
+
+      if (!accounts || accounts.length === 0) {
+        throw new Error("No Alphaeon account found matching the SSN provided. Please ensure the information entered matches your application.");
+      }
+
+      const acc = accounts[0];
+
+      if (expectedAccountNumber && acc.alphaeon_account_number !== expectedAccountNumber) {
+        console.error("Mismatch detected!", { expected: expectedAccountNumber, found: acc.alphaeon_account_number });
+        throw new Error("Account mismatch: The approved account does not match the SSN provided in our records. Please restart the process with consistent information.");
+      }
+
+      return acc;
+    } catch (err: any) {
+      console.error("Re-verification failed:", err);
+      throw err;
+    }
+  };
+
+  const handleCloseIframe = async () => {
+    setIsSearchingAccount(true);
+    try {
+      const ssn = paymentData.patientInfo?.ssn;
+      const zip = paymentData.patientInfo?.address?.zipCode;
+
+      if (ssn && zip) {
+        // Try one last lookup to see if they finished but closed manually
+        const accounts = await alphaeonApi.lookupAccount({ ssn, zip, location_id: locationId });
+        if (accounts && accounts.length > 0) {
+          const acc = accounts[0];
+          updatePaymentData({
+            accountNumber: acc.alphaeon_account_number,
+            consumerCreditInstrumentId: acc.consumer_credit_instrument_id ? String(acc.consumer_credit_instrument_id) : undefined,
+            accountMemberId: acc.account_member_id ? String(acc.account_member_id) : undefined,
+            alphaeonAccountIdentifier: acc.alphaeon_account_identifier,
+            creditLimit: acc.credit_limit,
+            available_credit_limit: acc.available_credit_limit,
+            availableCredit: acc.available_credit_limit || acc.available_credit,
+            patientInfo: {
+              ...paymentData.patientInfo,
+              firstName: (acc.name?.first_name || acc.first_name || acc.firstName || paymentData.patientInfo?.firstName || '').trim(),
+              lastName: (acc.name?.last_name || acc.last_name || acc.lastName || paymentData.patientInfo?.lastName || '').trim(),
+              email: acc.email || acc.contact_email || paymentData.patientInfo?.email,
+              phone: acc.phone || acc.mobile_phone || acc.primary_phone || paymentData.patientInfo?.phone,
+            }
+          });
+          toast.success("Account confirmed!");
+          setCurrentStep(3);
+          setMaxStepReached(m => Math.max(m, 3));
+        } else {
+          console.log("No account found on manual close.");
+        }
+      }
+    } catch (e) {
+      console.warn("Silent failure during manual close lookup:", e);
+    } finally {
+      setIsSearchingAccount(false);
+      setIframeTrackingGuid(null);
+    }
   };
 
   // Let's re-write `handlePatientInfoNext` to store IDs.
@@ -764,6 +985,15 @@ export function PaymentWorkflow({
 
             {currentStep === 3 && (
               <div className="space-y-6">
+                {!!externalParams?.advitalTransactionId && (
+                  <Alert className="bg-blue-50 border-blue-200 text-blue-900">
+                    <Check className="h-4 w-4 text-blue-600" />
+                    <AlertDescription>
+                      Advital upfront payment applied: ${Number(externalParams.advitalUpfrontAmount || 0).toFixed(2)}
+                      {externalParams.advitalTransactionId ? ` (Txn: ${externalParams.advitalTransactionId})` : ''}
+                    </AlertDescription>
+                  </Alert>
+                )}
                 {paymentData.paymentMethod === 'finance' ? (
                   <>
                     <FinancePlanSelector
@@ -785,36 +1015,39 @@ export function PaymentWorkflow({
                       }
                       availablePlans={availablePlans}
                       isLoading={alphaeonLoading}
+                      isUpfrontLocked={isAdvitalUpfrontApplied || paymentData.advitalUpfrontPaid}
                     >
                       {/* Payment Summary for upfront portion */}
-                      {(paymentData.upfrontPayment || 0) > 0 && (
-                        <div className="mt-8 animate-in fade-in slide-in-from-top-4 duration-500">
-                          <label className="block text-sm font-bold text-gray-500 uppercase tracking-wide mb-4">
-                            Summary
-                          </label>
-                          <PaymentSummary
-                            amount={paymentData.upfrontPayment || 0}
-                            paymentMethod={paymentData.upfrontPaymentMethod || 'card'}
-                          />
+                      <div className="mt-8 animate-in fade-in slide-in-from-top-4 duration-500">
+                        <label className="block text-sm font-bold text-gray-500 uppercase tracking-wide mb-4">
+                          Summary
+                        </label>
+                        <PaymentSummary
+                          amount={paymentData.upfrontPayment || 0}
+                          paymentMethod={paymentData.upfrontPaymentMethod || 'card'}
+                        />
+                      </div>
+
+                      {/* Upfront Payment Action */}
+                      {!paymentData.advitalUpfrontPaid && (paymentData.upfrontPayment || 0) > 0 && (
+                        <div className="mt-8">
+                          <button
+                            type="button"
+                            onClick={handleFinalSubmit}
+                            className="w-full bg-[#5c67ff] hover:bg-[#4a54e1] text-white font-black uppercase tracking-widest text-xs h-14 rounded-xl transition-all shadow-lg shadow-blue-100 flex items-center justify-center"
+                          >
+                            Proceed to Upfront Payment
+                          </button>
                         </div>
                       )}
 
-                      {/* Credit Card fields — shared component */}
-                      {(paymentData.upfrontPayment || 0) > 0 && (paymentData.upfrontPaymentMethod || 'card') !== 'bank' && (
-                        <CardPaymentForm
-                          data={paymentData}
-                          onUpdate={updatePaymentData}
-                          showSubmit={false}
-                        />
-                      )}
-
-                      {/* Bank Transfer fields — shared component */}
-                      {(paymentData.upfrontPayment || 0) > 0 && paymentData.upfrontPaymentMethod === 'bank' && (
-                        <BankTransferForm
-                          data={paymentData}
-                          onUpdate={updatePaymentData}
-                          showSubmit={false}
-                        />
+                      {paymentData.advitalUpfrontPaid && (
+                        <div className="mt-8 p-4 bg-green-50 rounded-xl border border-green-100 flex items-center gap-3">
+                          <Check className="w-5 h-5 text-green-600" />
+                          <p className="text-sm font-bold text-green-800 uppercase tracking-tight">
+                            Upfront Payment Completed Successfully
+                          </p>
+                        </div>
                       )}
                     </FinancePlanSelector>
 
@@ -828,10 +1061,18 @@ export function PaymentWorkflow({
                       </button>
                       <button
                         onClick={handleFinalSubmit}
-                        disabled={!paymentData.selectedPlanObject || isSearchingAccount}
-                        className={`px-10 h-12 rounded-lg font-black transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2 ${paymentData.selectedPlanObject && !isSearchingAccount
-                          ? 'bg-slate-900 text-white hover:bg-black shadow-lg shadow-slate-200'
-                          : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                        disabled={
+                          !paymentData.selectedPlanObject ||
+                          isSearchingAccount ||
+                          (orderAmount - (paymentData.upfrontPayment || 0) < 250) ||
+                          ((paymentData.upfrontPayment || 0) > 0 && !paymentData.advitalUpfrontPaid)
+                        }
+                        className={`px-10 h-12 rounded-lg font-black transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2 ${paymentData.selectedPlanObject &&
+                            !isSearchingAccount &&
+                            (orderAmount - (paymentData.upfrontPayment || 0) >= 250) &&
+                            !((paymentData.upfrontPayment || 0) > 0 && !paymentData.advitalUpfrontPaid)
+                            ? 'bg-slate-900 text-white hover:bg-black shadow-lg shadow-slate-200'
+                            : 'bg-slate-100 text-slate-400 cursor-not-allowed'
                           }`}
                       >
                         {isSearchingAccount && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -863,16 +1104,18 @@ export function PaymentWorkflow({
               />
             )}
 
+
+
             {currentStep === 5 && (
               <ReceiptStep
                 paymentData={paymentData}
                 orderAmount={orderAmount}
+                onBack={() => setCurrentStep(4)}
               />
             )}
 
-            {(currentStep === 4 || currentStep === 5) && transactionError && (
+            {(currentStep === 4 || currentStep === 5 || currentStep === 6) && transactionError && (
               <FailedStep
-                errorMessage={transactionError || undefined}
                 onRetry={() => {
                   setTransactionError(null);
                   setCurrentStep(1);
@@ -900,7 +1143,7 @@ export function PaymentWorkflow({
                 </div>
               </div>
               <button
-                onClick={() => setIframeTrackingGuid(null)}
+                onClick={handleCloseIframe}
                 className="p-2 hover:bg-slate-100 rounded-full transition-all active:scale-95"
                 title="Close"
               >
@@ -918,25 +1161,64 @@ export function PaymentWorkflow({
                 }}
                 onPrequalification={(payload) => {
                   console.log("📥 prequalification:", payload);
+                  if (payload.status) setIframeApplicationStatus(payload.status);
                   if (payload.status === 'not_prequalified') {
                     toast.error('You were not prequalified for financing. Please choose another payment method.');
-                    setIframeTrackingGuid(null);
+                    // The iframe should not be auto closed. The Patient should initiate the closing of the iframe.
+                    // setIframeTrackingGuid(null);
                   }
                 }}
-                onCreditDecision={(payload) => {
+                onCreditDecision={async (payload) => {
                   console.log("📥 credit_decision:", payload);
+                  if (payload.status) setIframeApplicationStatus(payload.status);
 
                   if (payload.status === 'approved') {
-                    updatePaymentData({
-                      accountMemberId: payload.account_member ? String(payload.account_member) : undefined,
-                      consumerCreditInstrumentId: payload.consumer_credit_instrument ? String(payload.consumer_credit_instrument) : undefined,
-                      accountNumber: payload.acct_number,
-                      availableCredit: payload.available_credit,
-                    });
-                    toast.success('Credit approved! You can now choose a financing plan.');
-                    setIframeTrackingGuid(null);
-                    setCurrentStep(3);
-                    setMaxStepReached((max) => Math.max(max, 3));
+                    try {
+                      setIsSearchingAccount(true);
+                      // Security Check: Re-verify that the account returned matches the SSN in our input field
+                      const localSSN = paymentData.patientInfo?.ssn;
+                      const localZip = paymentData.patientInfo?.address?.zipCode;
+
+                      if (localSSN && localZip) {
+                        const verifiedAcc = await reverifyAccount(localSSN, localZip, payload.acct_number);
+
+                        updatePaymentData({
+                          accountMemberId: verifiedAcc.account_member_id ? String(verifiedAcc.account_member_id) : undefined,
+                          consumerCreditInstrumentId: verifiedAcc.consumer_credit_instrument_id ? String(verifiedAcc.consumer_credit_instrument_id) : undefined,
+                          accountNumber: verifiedAcc.alphaeon_account_number,
+                          availableCredit: verifiedAcc.available_credit_limit || verifiedAcc.available_credit,
+                          available_credit_limit: verifiedAcc.available_credit_limit,
+                          creditLimit: verifiedAcc.credit_limit,
+                          alphaeonAccountIdentifier: verifiedAcc.alphaeon_account_identifier,
+                          patientInfo: {
+                            ...paymentData.patientInfo,
+                            firstName: (verifiedAcc.name?.first_name || verifiedAcc.first_name || verifiedAcc.firstName || paymentData.patientInfo?.firstName || '').trim(),
+                            lastName: (verifiedAcc.name?.last_name || verifiedAcc.last_name || verifiedAcc.lastName || paymentData.patientInfo?.lastName || '').trim(),
+                            email: verifiedAcc.email || verifiedAcc.contact_email || paymentData.patientInfo?.email,
+                            phone: verifiedAcc.phone || verifiedAcc.mobile_phone || verifiedAcc.primary_phone || paymentData.patientInfo?.phone,
+                          }
+                        });
+                      } else {
+                        // Fallback if local data is missing (shouldn't happen)
+                        updatePaymentData({
+                          accountMemberId: payload.account_member ? String(payload.account_member) : undefined,
+                          consumerCreditInstrumentId: payload.consumer_credit_instrument ? String(payload.consumer_credit_instrument) : undefined,
+                          accountNumber: payload.acct_number,
+                          availableCredit: payload.available_credit,
+                        });
+                      }
+
+                      toast.success('Credit approved! Information verified.');
+                      setIframeTrackingGuid(null);
+                      setCurrentStep(3);
+                      setMaxStepReached((max) => Math.max(max, 3));
+                    } catch (err: any) {
+                      setAlphaeonError(err.message || "Account verification failed.");
+                      toast.error(err.message || "Account verification failed.");
+                      setIframeTrackingGuid(null);
+                    } finally {
+                      setIsSearchingAccount(false);
+                    }
                   } else if (payload.status === 'pending_step_up') {
                     console.log("🔒 Identity verification step-up required!");
                     toast('Additional identity verification required...', { icon: '🔒' });
@@ -947,7 +1229,8 @@ export function PaymentWorkflow({
                     }
                   } else if (payload.status === 'declined') {
                     toast.error('Your credit application was declined. Please choose another payment method.');
-                    setIframeTrackingGuid(null);
+                    // The iframe should not be auto closed. The Patient should initiate the closing of the iframe.
+                    // setIframeTrackingGuid(null);
                   }
                 }}
                 onReceiptSigned={(payload) => {
@@ -968,10 +1251,10 @@ export function PaymentWorkflow({
               </div>
               <div className="flex w-full md:w-auto gap-3">
                 <button
-                  onClick={() => setIframeTrackingGuid(null)}
+                  onClick={handleCloseIframe}
                   className="flex-1 md:flex-none px-6 py-3 md:py-2 text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors"
                 >
-                  Cancel
+                  {['not_prequalified', 'declined', 'pending_step_up', 'pended'].includes(iframeApplicationStatus || '') ? 'Close' : 'Cancel'}
                 </button>
                 {/* <button
                   onClick={() => {
@@ -1031,6 +1314,30 @@ export function PaymentWorkflow({
                   }
                   setPlaidVerificationUrl(null);
                 }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAdvitalUpfrontIframe && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex items-center justify-center z-[110] p-0 md:p-6">
+          <div className="bg-white md:rounded-2xl shadow-2xl w-full h-full md:max-w-4xl md:h-[85vh] flex flex-col relative overflow-hidden">
+            <div className="px-4 md:px-6 py-4 border-b flex items-center justify-between bg-white">
+              <h2 className="text-sm md:text-lg font-black text-slate-900 uppercase tracking-tight">Complete Upfront Payment</h2>
+              <button
+                onClick={() => setShowAdvitalUpfrontIframe(false)}
+                className="p-2 hover:bg-slate-100 rounded-full transition-all"
+                title="Close"
+              >
+                <AlertCircle className="w-6 h-6 text-slate-400 rotate-45" />
+              </button>
+            </div>
+            <div className="flex-1 bg-slate-50 relative overflow-hidden">
+              <iframe
+                src={`${advitalPortalBaseUrl}/finance-payment-portal?amount=${paymentData.upfrontPayment || 0}&locationId=${advitalLocationId}&contactId=${externalParams?.contactId || 'contact_demo'}&publishableKey=${advitalPublishableKey}`}
+                className="w-full h-full border-0"
+                title="Advital Upfront Payment"
               />
             </div>
           </div>

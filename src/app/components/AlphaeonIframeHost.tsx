@@ -1,6 +1,11 @@
 import { useEffect, useRef } from "react";
 import { PatientInfo } from "./PatientInfoForm";
 
+export interface AlphaeonPortalEvent {
+  eventType: string;
+  payload: unknown;
+}
+
 interface AlphaeonIframeHostProps {
   partnerTrackingGuid?: string;
   patientInfo?: PatientInfo;
@@ -10,6 +15,8 @@ interface AlphaeonIframeHostProps {
   onPrequalification?: (payload: any) => void;
   onCreditDecision?: (payload: any) => void;
   onReceiptSigned?: (payload: any) => void;
+  /** Fired for every `alphaeon-credit-portal` message, before per-event handlers. */
+  onAnyAlphaeonEvent?: (e: AlphaeonPortalEvent) => void;
 }
 
 export function AlphaeonIframeHost({
@@ -21,6 +28,7 @@ export function AlphaeonIframeHost({
   onPrequalification,
   onCreditDecision,
   onReceiptSigned,
+  onAnyAlphaeonEvent,
 }: AlphaeonIframeHostProps) {
   // Use refs so the message handler always has the latest callbacks
   // without needing to tear down and re-register the listener on every render
@@ -29,6 +37,7 @@ export function AlphaeonIframeHost({
     onPrequalification,
     onCreditDecision,
     onReceiptSigned,
+    onAnyAlphaeonEvent,
   });
 
   // Keep refs in sync with latest props
@@ -38,6 +47,7 @@ export function AlphaeonIframeHost({
       onPrequalification,
       onCreditDecision,
       onReceiptSigned,
+      onAnyAlphaeonEvent,
     };
   });
 
@@ -99,6 +109,7 @@ export function AlphaeonIframeHost({
       console.log("✅ Alphaeon Iframe Event:", data.eventType, data.payload);
 
       const cbs = callbacksRef.current;
+      cbs.onAnyAlphaeonEvent?.({ eventType: data.eventType, payload: data.payload });
 
       switch (data.eventType) {
         case "application_created":

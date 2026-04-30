@@ -104,7 +104,7 @@ export function CustomerPortal() {
                     zip: zipCode,
                     location_id: 6923 // Match the previous hardcoded ID for now
                 });
-                
+
                 if (accounts && accounts.length > 0) {
                     accountDataResult = accounts[0];
                 }

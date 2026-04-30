@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ShieldCheck, Lightbulb, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 import FinanceIcon from "../assets/icons/finance_logo.png";
 import { PaymentWorkflow } from './components/PaymentWorkflow';
 import { PaymentMethodToggle } from './components/ui/PaymentMethodToggle';
@@ -11,10 +11,9 @@ const PaymentCheckout = () => {
   const [paymentMethod, setPaymentMethod] = useState('card');
   const [goToFinanceStep2, setGoToFinanceStep2] = useState(false);
   const [formData, setFormData] = useState<any>({});
-  
-  const baseAmount = 11.00;
 
-  // Mock data from screenshot
+  const baseAmount = 802.00;
+
   const userName = "Aonghus O'Heocha";
   const userPhone = "+353879077030";
 

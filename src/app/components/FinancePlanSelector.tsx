@@ -14,6 +14,7 @@ interface FinancePlanSelectorProps {
   onUpfrontPaymentMethodChange?: (method: UpfrontPaymentMethod) => void;
   availablePlans: Plan[];
   isLoading?: boolean;
+  isUpfrontLocked?: boolean;
   children?: React.ReactNode;
 }
 
@@ -27,11 +28,13 @@ export function FinancePlanSelector({
   onUpfrontPaymentMethodChange,
   availablePlans,
   isLoading = false,
+  isUpfrontLocked = false,
   children
 }: FinancePlanSelectorProps) {
   const total = orderAmount;
   const remainingAmount = total - (upfrontPayment || 0);
-  const hasUpfront = (upfrontPayment || 0) > 0;
+  // const hasUpfront = (upfrontPayment || 0) > 0;
+  const isFinancePossible = remainingAmount >= 250;
 
   const handleUpfrontPaymentChange = (value: string) => {
     const cleaned = value.replace(/[^0-9.]/g, '');
@@ -40,7 +43,7 @@ export function FinancePlanSelector({
     if (cleaned === '' || isNaN(numValue)) {
       onUpfrontPaymentChange(undefined);
     } else {
-      const cappedValue = Math.min(numValue, total - 100);
+      const cappedValue = Math.min(numValue, total - 250);
       onUpfrontPaymentChange(cappedValue);
     }
   };
@@ -55,47 +58,50 @@ export function FinancePlanSelector({
             <DollarSign className="w-5 h-5 text-[#2d9d78]" />
           </div>
           <div className="flex-1">
-            <h4 className="text-[15px] font-black text-slate-800 uppercase tracking-tight mb-1">Upfront Payment (Optional)</h4>
+            <h4 className="text-[15px] font-black text-slate-800 uppercase tracking-tight mb-1">Upfront Payment(Optional)</h4>
 
-            
+
             <div className="max-w-[240px] relative h-14 group">
-               <div className="absolute left-4 inset-y-0 flex items-center pointer-events-none z-10">
-                 <span className="text-slate-400 font-black text-lg group-focus-within:text-[#2d9d78] transition-colors">$</span>
-               </div>
-               <input
-                  type="text"
-                  placeholder="0.00"
-                  value={upfrontPayment !== undefined ? upfrontPayment : ''}
-                  onChange={(e) => handleUpfrontPaymentChange(e.target.value)}
-                  className="w-full h-full pl-10 pr-4 rounded-2xl border-2 border-slate-100 hover:border-slate-200 focus:border-[#2d9d78] focus:ring-4 focus:ring-[#2d9d78]/10 transition-all font-black text-slate-700 bg-white placeholder:text-slate-200 text-lg"
-               />
+              <div className="absolute left-4 inset-y-0 flex items-center pointer-events-none z-10">
+                <span className="text-slate-400 font-black text-lg group-focus-within:text-[#2d9d78] transition-colors">$</span>
+              </div>
+              <input
+                type="text"
+                placeholder="0.00"
+                value={upfrontPayment !== undefined ? upfrontPayment : ''}
+                onChange={(e) => handleUpfrontPaymentChange(e.target.value)}
+                disabled={isUpfrontLocked}
+                className="w-full h-full pl-10 pr-4 rounded-2xl border-2 border-slate-100 hover:border-slate-200 focus:border-[#2d9d78] focus:ring-4 focus:ring-[#2d9d78]/10 transition-all font-black text-slate-700 bg-white placeholder:text-slate-200 text-lg disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
+              />
             </div>
             <p className="text-[10px] font-bold text-slate-400 mt-3 ml-1 uppercase tracking-tight">
-                Max Budget: ${(Math.max(0, total - 100)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              Max Budget: ${(Math.max(0, total - 250)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
 
-            {/* Payment Method Selector — shown when upfront amount > 0, styled exactly like homepage */}
-            {hasUpfront && (
-              <div className="mt-5 animate-in fade-in slide-in-from-top-2 duration-300">
-                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">
-                  Pay Upfront Amount Via
-                </p>
-                <PaymentMethodToggle
-                  paymentMethod={upfrontPaymentMethod || 'card'}
-                  onMethodChange={(method) => onUpfrontPaymentMethodChange?.(method as UpfrontPaymentMethod)}
-                  showFinance={false}
-                />
-              </div>
-            )}
+            {/* Payment Method Selector — shown everytime, styled exactly like homepage */}
+            <div className="mt-5 animate-in fade-in slide-in-from-top-2 duration-300">
+              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">
+                Pay Upfront Amount Via
+              </p>
+              <PaymentMethodToggle
+                paymentMethod={upfrontPaymentMethod || 'card'}
+                onMethodChange={(method) => {
+                  if (!isUpfrontLocked) {
+                    onUpfrontPaymentMethodChange?.(method as UpfrontPaymentMethod);
+                  }
+                }}
+                showFinance={false}
+              />
+            </div>
 
-            {children && (
+            {!isUpfrontLocked && children && (
               <div className="mt-6 pt-6 border-t border-[#dcf2ed]">
                 {children}
               </div>
             )}
           </div>
         </div>
-        
+
       </div>
 
       {/* Finance Plans Box */}
@@ -103,19 +109,32 @@ export function FinancePlanSelector({
         {/* Remaining Amount to Finance Section */}
         <div className="flex flex-col items-center">
           <h4 className="text-[15px] font-black text-slate-800 uppercase tracking-tight mb-4 text-center">
-            REMAINING AMOUNT TO FINANCE WITH ALPHAEON CREDIT CARD
+            Remaining Amount to Finance with Alphaeon
           </h4>
           <div className="text-5xl md:text-6xl font-black text-slate-900 tracking-tighter">
             ${remainingAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
+
+          {!isFinancePossible && (
+            <div className="mt-6 p-4 bg-red-50 border-2 border-red-100 rounded-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+              <p className="text-sm font-bold text-red-900 uppercase tracking-tight">
+                Finance is not possible for amounts less than $250.00. Please reduce your upfront payment or choose another payment method.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Plan Grid */}
         <div className="relative">
-          {!isLoading && availablePlans.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
-              <AlertCircle className="w-10 h-10 text-slate-300 mb-3" />
-              <p className="text-slate-500 font-black uppercase tracking-tight text-sm">No financing plans available</p>
+          {!isLoading && (availablePlans.length === 0 || !isFinancePossible) ? (
+            <div className="flex flex-col items-center justify-center p-12 bg-slate-50 rounded-[24px] border-2 border-dashed border-slate-200">
+              <AlertCircle className="w-12 h-12 text-slate-300 mb-4" />
+              <p className="text-slate-500 font-black uppercase tracking-widest text-center max-w-[280px]">
+                {!isFinancePossible
+                  ? "Financing Requires a Minimum of $250.00"
+                  : "No financing plans available for this amount"}
+              </p>
             </div>
           ) : (
             <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 transition-opacity duration-300 ${isLoading ? 'opacity-60' : 'opacity-100'}`}>
@@ -180,9 +199,9 @@ export function FinancePlanSelector({
               if (!selectedPlan) return null;
               return (
                 <div className="text-[11px] leading-relaxed text-slate-500">
-                   <div 
+                  <div
                     className="prose prose-slate prose-sm max-w-none space-y-4"
-                    dangerouslySetInnerHTML={{ __html: selectedPlan.description || '' }} 
+                    dangerouslySetInnerHTML={{ __html: selectedPlan.description || '' }}
                   />
                 </div>
               );
@@ -192,12 +211,12 @@ export function FinancePlanSelector({
       )}
 
       {/* No Hidden Fees Banner */}
-       <div className="p-4 bg-[#fffced] rounded-xl border border-[#fff5cc] shadow-sm">
+      {/* <div className="p-4 bg-[#fffced] rounded-xl border border-[#fff5cc] shadow-sm">
         <p className="text-[13px] font-bold text-[#856404] text-center">
           <span className="font-black uppercase mr-2 tracking-tighter">No hidden fees:</span> 
           Your monthly payment will never change, and there are no penalties for early payment.
         </p>
-      </div>
+      </div> */}
     </div>
 
   );

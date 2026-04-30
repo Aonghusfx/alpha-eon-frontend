@@ -9,9 +9,10 @@ import toast from 'react-hot-toast';
 interface ReceiptStepProps {
   paymentData: PaymentData;
   orderAmount: number;
+  onBack?: () => void;
 }
 
-export function ReceiptStep({ paymentData, orderAmount }: ReceiptStepProps) {
+export function ReceiptStep({ paymentData, orderAmount, onBack }: ReceiptStepProps) {
   const [isTxnActionLoading, setIsTxnActionLoading] = React.useState(false);
   
   const total = orderAmount;
@@ -177,37 +178,23 @@ export function ReceiptStep({ paymentData, orderAmount }: ReceiptStepProps) {
           </div>
         )}
 
-        {/* <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex flex-col sm:flex-row gap-4">
+          {onBack && (
+            <Button 
+              variant="outline"
+              className="flex-1 h-14 rounded-2xl border-2 border-slate-200 font-black uppercase tracking-widest text-xs hover:bg-slate-50 transition-all active:scale-95"
+              onClick={onBack}
+            >
+              Back to Success
+            </Button>
+          )}
           <Button 
-            className="flex-1 h-14 rounded-2xl bg-slate-900 hover:bg-black text-white font-black uppercase tracking-widest text-xs shadow-xl shadow-slate-200 transition-all active:scale-95"
+            className="flex-[1.5] h-14 rounded-2xl bg-slate-900 hover:bg-black text-white font-black uppercase tracking-widest text-xs shadow-xl shadow-slate-200 transition-all active:scale-95"
             onClick={() => window.location.reload()}
           >
-            Continue Shopping
+            Finish & Reload
           </Button>
-          
-          {paymentData.paymentMethod === 'finance' && (
-            <div className="flex gap-2">
-               <Button
-                variant="outline"
-                className="h-14 w-14 rounded-2xl border-slate-200 flex items-center justify-center group"
-                onClick={handleVoid}
-                disabled={isTxnActionLoading}
-                title="Void Transaction"
-              >
-                <Ban className="w-5 h-5 text-slate-400 group-hover:text-red-500 transition-colors" />
-              </Button>
-              <Button
-                variant="outline"
-                className="h-14 w-14 rounded-2xl border-slate-200 flex items-center justify-center group"
-                onClick={handleRefund}
-                disabled={isTxnActionLoading}
-                title="Refund Transaction"
-              >
-                <RotateCcw className="w-5 h-5 text-slate-400 group-hover:text-blue-500 transition-colors" />
-              </Button>
-            </div>
-          )}
-        </div> */}
+        </div>
       </Card>
 
       {/* <Card className="p-8 border-dashed bg-transparent border-2 border-slate-200 shadow-none">

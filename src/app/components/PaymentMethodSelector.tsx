@@ -82,40 +82,51 @@ export function PaymentMethodSelector({
           </div> */}
 
           {/* Finance Option */}
-          <div
-            className={`group relative border-2 rounded-2xl p-6 cursor-pointer transition-all duration-300 ${paymentMethod === 'finance'
-              ? 'border-red-600 bg-red-50/50 shadow-lg shadow-red-100'
-              : 'border-slate-100 hover:border-slate-200 bg-white'
-              }`}
-            onClick={() => onPaymentMethodChange('finance')}
-          >
-            <div className="flex items-start gap-5">
-              <div className="mt-1">
-                <RadioGroupItem value="finance" id="finance" className="w-5 h-5 border-2 text-red-600 focus-visible:ring-red-600" />
-              </div>
-              <div className="flex-1">
-                <Label
-                  htmlFor="finance"
-                  className="flex items-center gap-3 cursor-pointer mb-1"
-                >
-                  <div className="flex-shrink-0">
-                    <AlphaeonLogo />
-                  </div>
-                  <span className="text-xl font-bold text-slate-900 uppercase tracking-tight">Finance With Alphaeon</span>
-                </Label>
+          {orderAmount >= 250 && (
+            <div
+              className={`group relative border-2 rounded-2xl p-6 transition-all duration-300 ${paymentMethod === 'finance'
+                  ? 'border-red-600 bg-red-50/50 shadow-lg shadow-red-100 cursor-pointer'
+                  : 'border-slate-100 hover:border-slate-200 bg-white cursor-pointer'
+                }`}
+              onClick={() => onPaymentMethodChange('finance')}
+            >
+              <div className="flex items-start gap-5">
                 <div className="mt-1">
-                  {isLoadingPlans ? (
-                    <div className="text-xs font-bold text-red-500 animate-pulse uppercase tracking-widest pl-10">Calculating your offers...</div>
-                  ) : (
-                    <p className="text-lg font-black text-slate-900 pl-10">
-                      As low as <span className="text-red-600">${lowestMonthlyPayment.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>/mo
-                    </p>
-                  )}
+                  <RadioGroupItem
+                    value="finance"
+                    id="finance"
+                    className="w-5 h-5 border-2 text-red-600 focus-visible:ring-red-600"
+                  />
+                </div>
+                <div className="flex-1">
+                  <Label
+                    htmlFor="finance"
+                    className="flex items-center gap-3 mb-1 cursor-pointer"
+                  >
+                    <div className="flex-shrink-0">
+                      <AlphaeonLogo />
+                    </div>
+                    <span className="text-xl font-bold text-slate-900 uppercase tracking-tight">Finance With Alphaeon</span>
+                  </Label>
+                  <div className="mt-1">
+                    {isLoadingPlans ? (
+                      <div className="text-xs font-bold text-red-500 animate-pulse uppercase tracking-widest pl-10">Calculating your offers...</div>
+                    ) : (
+                      <p className="text-lg font-black text-slate-900 pl-10">
+                        As low as <span className="text-red-600">${lowestMonthlyPayment.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>/mo
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
         </RadioGroup>
+        {paymentMethod === 'finance' && (
+          <p className="text-center text-red-600 text-[10px] font-black uppercase tracking-[0.2em] mt-6">
+            No processing fees for Alphaeon
+          </p>
+        )}
       </Card>
 
       {/* Continue Button */}

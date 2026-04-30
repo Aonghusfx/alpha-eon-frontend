@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { CheckCircle, Ban, Check } from 'lucide-react';
+import { CheckCircle, Ban, Check, X } from 'lucide-react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import type { PaymentData } from './PaymentWorkflow';
 import { alphaeonApi } from '../../services/alphaeonApi';
 import toast from 'react-hot-toast';
 
-import { AlphaeonIframeHost } from './AlphaeonIframeHost';
+import { AlphaeonIframeHost, type AlphaeonPortalEvent } from './AlphaeonIframeHost';
 import { PlaidIframeHost } from './PlaidIframeHost';
 
 interface SuccessStepProps {
@@ -18,6 +18,37 @@ interface SuccessStepProps {
 
 export function SuccessStep({ paymentData, updatePaymentData, onComplete }: SuccessStepProps) {
   const [plaidUrl, setPlaidUrl] = useState<string | null>(null);
+  const [isSigned, setIsSigned] = useState(false);
+  const [canCloseSignatureModal, setCanCloseSignatureModal] = useState(false);
+
+  const signingFlowLooksFailed = (e: AlphaeonPortalEvent): boolean => {
+    const et = (e.eventType || '').toLowerCase();
+    if (
+      /(fail|error|declin|reject|abort|cancel|unverif|unable|not_approv|denied|blocked)/.test(et) &&
+      !/not_failed|no_error/.test(et)
+    ) {
+      return true;
+    }
+    const p = e.payload;
+    if (p && typeof p === 'object') {
+      const o = p as Record<string, unknown>;
+      const status = String(o.status ?? '').toLowerCase();
+      if (['failed', 'error', 'declined', 'canceled', 'rejected', 'aborted', 'denied'].some((s) => status.includes(s))) {
+        return true;
+      }
+    }
+    const blob = (() => {
+      try {
+        return JSON.stringify(e.payload).toLowerCase();
+      } catch {
+        return '';
+      }
+    })();
+    if (/(unable to verify|verification failed|did not verify|not approve|identity could not|retry verification)/.test(blob)) {
+      return true;
+    }
+    return false;
+  };
 
   // POLLING FALLBACK: If signature is pending, check transaction status periodically
   React.useEffect(() => {
@@ -31,15 +62,16 @@ export function SuccessStep({ paymentData, updatePaymentData, onComplete }: Succ
         try {
           console.log("🔄 Background polling for signature: ", txnId);
           const details = await alphaeonApi.getTransactionV2(String(txnId));
-          
+
           if (details.status === 'signed' || details.status === 'completed' || details.status === 'funded') {
             console.log("✨ Background poll CONFIRMED signature!", details.status);
-            updatePaymentData({ 
-              isSignaturePending: false,
+            updatePaymentData({
               transactionId: details.transaction_id || paymentData.transactionId
             });
+            setIsSigned(true);
             toast.success("Signature confirmed!");
-            onComplete(); // Move to next step
+            // The iframe should not be auto closed. The Patient should initiate the closing.
+            // onComplete(); // Move to next step
             clearInterval(pollInterval);
           }
         } catch (e) {
@@ -55,6 +87,12 @@ export function SuccessStep({ paymentData, updatePaymentData, onComplete }: Succ
       }
     };
   }, [paymentData.isSignaturePending, paymentData.transactionId, updatePaymentData]);
+
+  const closeSignatureModal = () => {
+    updatePaymentData({ isSignaturePending: false });
+    setCanCloseSignatureModal(false);
+    toast('Signature window closed. You can return if your care team sends a new signing link.');
+  };
 
   const orderNumber = React.useMemo(() => {
     return paymentData.transactionId || paymentData.cardAuthId || `ORD-${Math.random().toString(36).substring(2, 11).toUpperCase()}`;
@@ -104,8 +142,8 @@ export function SuccessStep({ paymentData, updatePaymentData, onComplete }: Succ
           <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex items-center justify-center z-[100] p-0 md:p-6 animate-in fade-in duration-300">
             <div className="bg-white md:rounded-2xl shadow-2xl w-full h-full md:max-w-5xl md:h-[85vh] flex flex-col relative overflow-hidden ring-1 ring-black/5 animate-in zoom-in-95 duration-300">
               {/* Header */}
-              <div className="px-4 md:px-6 py-4 border-b flex items-center justify-between bg-white shadow-sm z-10">
-                <div className="flex items-center gap-2 md:gap-3">
+              <div className="px-4 md:px-6 py-4 border-b flex items-center justify-between bg-white shadow-sm z-10 gap-2">
+                <div className="flex items-center gap-2 md:gap-3 min-w-0">
                   <div className="w-8 h-8 md:w-10 md:h-10 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-200">
                     <Check className="w-4 h-4 md:w-6 md:h-6 text-white" />
                   </div>
@@ -114,7 +152,18 @@ export function SuccessStep({ paymentData, updatePaymentData, onComplete }: Succ
                     <p className="text-[10px] md:text-xs font-bold text-blue-500 uppercase tracking-widest">Digital Receipt Signature</p>
                   </div>
                 </div>
-                {/* No close button here to enforce signing, but we can add one if needed to exit modal */}
+                {canCloseSignatureModal && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0 text-slate-500 hover:text-slate-900"
+                    onClick={closeSignatureModal}
+                    aria-label="Close signature window"
+                  >
+                    <X className="w-5 h-5" />
+                  </Button>
+                )}
               </div>
 
               {/* Iframe Body */}
@@ -122,14 +171,20 @@ export function SuccessStep({ paymentData, updatePaymentData, onComplete }: Succ
                 <AlphaeonIframeHost
                   overrideUrl={paymentData.signatureLink}
                   partnerTrackingGuid={`ADV_SIGN_${paymentData.transactionId}`}
+                  onAnyAlphaeonEvent={(e) => {
+                    if (signingFlowLooksFailed(e)) {
+                      setCanCloseSignatureModal(true);
+                    }
+                  }}
                   onReceiptSigned={(payload) => {
                     console.log("📥 Receipt signed via iframe:", payload);
                     updatePaymentData({
-                      isSignaturePending: false,
                       transactionId: payload.transaction_id || paymentData.transactionId
                     });
-                    toast.success('Receipt signed successfully! Your financing is complete.');
-                    onComplete(); // Move to next step
+                    setIsSigned(true);
+                    toast.success('Receipt signed successfully!');
+                    // The iframe should not be auto closed. The Patient should initiate the closing.
+                    // onComplete(); // Move to next step
                   }}
                 />
               </div>
@@ -140,8 +195,41 @@ export function SuccessStep({ paymentData, updatePaymentData, onComplete }: Succ
                   <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-sm shadow-green-200" />
                   Secure Encryption Active
                 </div>
-                <div className="text-[10px] md:text-xs font-bold text-slate-400 uppercase text-center md:text-right">
-                  Please sign above to finalize your payment
+                <div className="flex w-full md:w-auto gap-3 items-center flex-wrap justify-center md:justify-end">
+                  {!isSigned ? (
+                    <>
+                      <div className="text-[10px] md:text-xs font-bold text-slate-400 uppercase text-center md:text-right">
+                        Please sign above to finalize your payment
+                      </div>
+                      {!canCloseSignatureModal && (
+                        <button
+                          type="button"
+                          className="text-[10px] md:text-xs font-semibold text-slate-500 underline underline-offset-2 hover:text-slate-800"
+                          onClick={() => {
+                            if (
+                              window.confirm(
+                                'Use this only if signing failed or you cannot keep going. Close this window? You may need a new signing link to finish later.'
+                              )
+                            ) {
+                              closeSignatureModal();
+                            }
+                          }}
+                        >
+                          {`Can't continue?`}
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        updatePaymentData({ isSignaturePending: false });
+                        onComplete();
+                      }}
+                      className="w-full md:w-auto px-8 py-3 bg-blue-600 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95 animate-in zoom-in-95 duration-300"
+                    >
+                      Finish & View Receipt
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -149,9 +237,9 @@ export function SuccessStep({ paymentData, updatePaymentData, onComplete }: Succ
         )}
 
         {!paymentData.isSignaturePending && (
-           <Button className="w-full h-14 rounded-2xl bg-blue-600 hover:bg-blue-700 font-black uppercase tracking-widest text-xs shadow-lg shadow-blue-200" onClick={onComplete}>
-             View Final Receipt
-           </Button>
+          <Button className="w-full h-14 rounded-2xl bg-blue-600 hover:bg-blue-700 font-black uppercase tracking-widest text-xs shadow-lg shadow-blue-200" onClick={onComplete}>
+            Continue
+          </Button>
         )}
       </Card>
 
