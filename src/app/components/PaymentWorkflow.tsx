@@ -129,7 +129,7 @@ export function PaymentWorkflow({
   const locationIdRef = useRef(locationId);
   const advitalLocationIdRef = useRef(advitalLocationId);
 
-  console.log(paymentDataRef?.current?.upfrontPayment,"paymentDataRef.current")
+  console.log(paymentDataRef?.current?.upfrontPayment, "paymentDataRef.current")
 
   useEffect(() => {
     paymentDataRef.current = paymentData;
@@ -357,12 +357,12 @@ export function PaymentWorkflow({
       }
 
       if (message.type === 'advital_payment_error') {
-        console.log("message.type",message.type , "hekfaemf;aefl;eamfl;emal;fma;lfm;l",message.error)
+        console.log("message.type", message.type, "hekfaemf;aefl;eamfl;emal;fma;lfm;l", message.error)
         console.error('❌ Advital Payment Error:', message.error);
         const errorMsg = message.error || 'Payment failed. Please try again.';
 
         toast.error(errorMsg);
-        
+
       }
 
       if (message.type === 'advital_payment_skipped') {
@@ -1068,11 +1068,11 @@ export function PaymentWorkflow({
                           ((paymentData.upfrontPayment || 0) > 0 && !paymentData.advitalUpfrontPaid)
                         }
                         className={`px-10 h-12 rounded-lg font-black transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2 ${paymentData.selectedPlanObject &&
-                            !isSearchingAccount &&
-                            (orderAmount - (paymentData.upfrontPayment || 0) >= 250) &&
-                            !((paymentData.upfrontPayment || 0) > 0 && !paymentData.advitalUpfrontPaid)
-                            ? 'bg-slate-900 text-white hover:bg-black shadow-lg shadow-slate-200'
-                            : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                          !isSearchingAccount &&
+                          (orderAmount - (paymentData.upfrontPayment || 0) >= 250) &&
+                          !((paymentData.upfrontPayment || 0) > 0 && !paymentData.advitalUpfrontPaid)
+                          ? 'bg-slate-900 text-white hover:bg-black shadow-lg shadow-slate-200'
+                          : 'bg-slate-100 text-slate-400 cursor-not-allowed'
                           }`}
                       >
                         {isSearchingAccount && <Loader2 className="w-4 h-4 animate-spin" />}
