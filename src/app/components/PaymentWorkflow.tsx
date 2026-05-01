@@ -154,7 +154,15 @@ export function PaymentWorkflow({
     const fetchOrder = async () => {
       try {
         const baseUrl = import.meta.env.VITE_ALPHAEON_API_URL;
-        const response = await fetch(`${baseUrl.trim()}/orders/latest`);
+        const response = await fetch(`${baseUrl.trim()}/api/orders/latest`);
+
+        if (!response.ok) {
+          console.warn(`Orders endpoint returned ${response.status}, using default amount`);
+          setOrderAmount(802);
+          setIsOrderLoading(false);
+          return;
+        }
+
         const data = await response.json();
         if (data && (data.total || data.amount)) {
           // Use total for financing, fallback to amount
@@ -162,6 +170,8 @@ export function PaymentWorkflow({
           setOrderAmount(finalTotal);
           setOrderData(data);
           console.log(`💰 Dynamic order loaded:`, data);
+        } else {
+          setOrderAmount(802);
         }
       } catch (err) {
         console.error('Failed to fetch order amount:', err);
