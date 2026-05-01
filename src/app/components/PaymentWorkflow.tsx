@@ -154,7 +154,7 @@ export function PaymentWorkflow({
     const fetchOrder = async () => {
       try {
         const baseUrl = import.meta.env.VITE_ALPHAEON_API_URL;
-        const response = await fetch(`${baseUrl.trim()}/api/orders/latest`);
+        const response = await fetch(`${baseUrl.trim()}/api/alphaeon/orders/latest`);
 
         if (!response.ok) {
           console.warn(`Orders endpoint returned ${response.status}, using default amount`);
@@ -447,16 +447,13 @@ export function PaymentWorkflow({
         console.log(`🚀 Step 1: Processing ${data.paymentMethod === 'full' ? 'full' : 'upfront'} payment of $${upfrontAmt} via card...`);
         toast(`${data.paymentMethod === 'full' ? 'Processing full' : 'Step 1 of 2: Processing upfront'} payment...`, { icon: '💳' });
 
-        // Use the same base URL as Alphaeon API, but point to the payments route
-        const alphaeonBaseUrl = import.meta.env.VITE_ALPHAEON_API_URL || '';
-        const apiBaseUrl = alphaeonBaseUrl.includes('/alphaeon')
-          ? alphaeonBaseUrl.split('/alphaeon')[0]
-          : '/api';
+        // Backend has separate payment routes at /api/payments/ (not /api/alphaeon/)
+        const backendBaseUrl = import.meta.env.VITE_ALPHAEON_API_URL || 'https://alpha-eon-backend.vercel.app';
 
-        console.log(`🔌 Using API Base for card charge: ${apiBaseUrl}`);
+        console.log(`🔌 Using API Base for card charge: ${backendBaseUrl}/api/payments/card/charge`);
 
         // Call backend card payment endpoint
-        const cardRes = await fetch(`${apiBaseUrl}/payments/card/charge`, {
+        const cardRes = await fetch(`${backendBaseUrl}/api/payments/card/charge`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

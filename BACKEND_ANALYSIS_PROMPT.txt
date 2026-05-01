@@ -1,0 +1,104 @@
+# 📋 BACKEND ANALYSIS PROMPT
+# Copy and paste this ENTIRE prompt into your backend project's AI assistant
+
+---
+
+I'm working on connecting my Alphaeon frontend to this backend. The frontend is getting 404 errors for these endpoints:
+
+1. `GET https://alpha-eon-backend.vercel.app/api/orders/latest`
+2. `POST https://alpha-eon-backend.vercel.app/api/oauth/token`
+3. Various Alphaeon proxy endpoints like `/api/transactions/sale`, `/api/merchant_management/v2/locations/:locationId/plans`, etc.
+
+Please help me analyze this backend by providing:
+
+## 📁 1. Project Structure
+Show me the complete file/folder structure, especially:
+```bash
+# Run this command and paste output:
+tree -L 3 -I 'node_modules|.git' 
+# Or on Windows PowerShell:
+Get-ChildItem -Recurse -Depth 3 -Directory | Select-Object FullName
+```
+
+## 🛣️ 2. All Route Definitions
+Search for and show me all API route files:
+```bash
+# Search for route definitions:
+grep -r "router\." . --include="*.js" --include="*.ts"
+# Or search for: app.get, app.post, router.get, router.post, export async function
+```
+
+Specifically look for files like:
+- `routes/alphaeon.js` or `routes/alphaeon.ts`
+- `api/oauth/token` endpoint
+- `api/orders/` endpoints
+- Any Alphaeon-related routes
+- Main app.js or index.js file
+
+## 🔑 3. Environment Variables
+Show me your `.env.example` or list all environment variables used:
+```bash
+# Search for all env variable usage:
+grep -r "process.env\." . --include="*.js" --include="*.ts" | head -20
+# Or: grep -r "import.meta.env" . --include="*.js" --include="*.ts"
+```
+
+## 🏗️ 4. Framework & Setup
+Tell me:
+- What framework? (Express, Next.js API routes, Netlify Functions, etc.)
+- Main entry file (app.js, server.js, index.js, pages/api/)
+- How are routes registered?
+- What port does it run on?
+
+## 🔍 5. Alphaeon-Specific Code
+Search for any Alphaeon-related code:
+```bash
+# Search for "alphaeon" (case insensitive):
+grep -ri "alphaeon" . --include="*.js" --include="*.ts"
+```
+
+Show me:
+- Any files that import or use Alphaeon
+- Authentication/OAuth code
+- Transaction processing code
+- API proxy/wrapper code
+
+## 📦 6. Package.json
+Show me your `package.json` dependencies and scripts sections.
+
+## 🚀 7. Deployment Config
+Show me:
+- `vercel.json` (if exists)
+- Deployment configuration
+- Any rewrites/redirects configured
+
+---
+
+## Output Format
+For each route file found, show me:
+1. The file path
+2. The full file contents (or at least the route definitions)
+
+Example:
+```javascript
+// File: routes/alphaeon.js
+const express = require('express');
+const router = express.Router();
+
+router.post('/oauth/token', async (req, res) => {
+  // ... code here
+});
+
+module.exports = router;
+```
+
+---
+
+## Goal
+I need to understand:
+- ✅ Do these routes exist in the backend?
+- ✅ What are the exact route paths?
+- ✅ Are they mounted with prefixes like `/api/`?
+- ✅ How is Alphaeon integration implemented?
+
+Copy all the findings back so I can fix the frontend to match your backend structure!

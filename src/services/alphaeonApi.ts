@@ -101,7 +101,7 @@ class AlphaeonApiService {
         try {
             const audience = import.meta.env.VITE_ALPHAEON_AUDIENCE || 'https://api.alphaeon.com/';
 
-            const response = await fetch(`${this.baseUrl}/api/oauth/token`, {
+            const response = await fetch(`${this.baseUrl}/api/alphaeon/oauth/token`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -151,7 +151,7 @@ class AlphaeonApiService {
     ): Promise<T> {
         const token = await this.authenticate();
 
-        const response = await fetch(`${this.baseUrl}/api${endpoint}`, {
+        const response = await fetch(`${this.baseUrl}/api/alphaeon${endpoint}`, {
             ...options,
             headers: {
                 'Content-Type': 'application/json',
