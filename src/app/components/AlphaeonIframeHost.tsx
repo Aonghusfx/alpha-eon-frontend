@@ -22,7 +22,7 @@ interface AlphaeonIframeHostProps {
 export function AlphaeonIframeHost({
   partnerTrackingGuid,
   patientInfo,
-  locationId = "15470",
+  locationId = "6594",
   overrideUrl,
   onApplicationCreated,
   onPrequalification,

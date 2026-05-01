@@ -96,7 +96,7 @@ export function PaymentWorkflow({
   const [currentStep, setCurrentStep] = useState(safeInitialStep);
   const [maxStepReached, setMaxStepReached] = useState(safeInitialStep);
   const [iframeTrackingGuid, setIframeTrackingGuid] = useState<string | null>(null);
-  const locationId = import.meta.env.VITE_ALPHAEON_LOCATION_ID || '15470';
+  const locationId = import.meta.env.VITE_ALPHAEON_LOCATION_ID || '6594';
   const advitalLocationId = import.meta.env.VITE_ADVITAL_LOCATION_ID || 'test123';
 
   const [paymentData, setPaymentData] = useState<any>({

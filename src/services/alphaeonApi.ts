@@ -222,7 +222,7 @@ class AlphaeonApiService {
     /**
      * Get Transaction Details
      */
-    async getTransactionDetails(transactionId: string, locationId: string = '15470'): Promise<any> {
+    async getTransactionDetails(transactionId: string, locationId: string = '6594'): Promise<any> {
         return this.makeRequest<any>(`/transactions/${transactionId}?location_id=${locationId}`, {
             method: 'GET'
         });
@@ -259,7 +259,7 @@ class AlphaeonApiService {
     /**
      * Get available financing plans based on purchase amount
      */
-    async getFinancingPlans(amount: number, locationId: string = '15470'): Promise<any> {
+    async getFinancingPlans(amount: number, locationId: string = '6594'): Promise<any> {
         // Backend route path is v1 for compatibility, but it proxies Alphaeon v2 and returns eligible_plans/ineligible_plans.
         return this.makeRequest(`/merchant_management/v2/locations/${locationId}/plans?amount=${amount}`);
     }
@@ -297,7 +297,7 @@ class AlphaeonApiService {
                 account_number: params.account_number,
                 ssn_last_4: params.ssn_last_4,
                 dob: params.dob,
-                location_id: params.location_id || '15470'
+                location_id: params.location_id || '6594'
             }),
         });
         return response.accounts || [];
@@ -306,7 +306,7 @@ class AlphaeonApiService {
     /**
      * Lookup account by Account Number
      */
-    async lookupAccountByNumber(accountNumber: string, locationId: string = '15470'): Promise<any> {
+    async lookupAccountByNumber(accountNumber: string, locationId: string = '6594'): Promise<any> {
         return this.makeRequest<any>(`/lookups/accounts/${accountNumber}?location_id=${locationId}`, {
             method: 'GET'
         });
@@ -315,7 +315,7 @@ class AlphaeonApiService {
     /**
      * Get terms and requirements for a new credit application
      */
-    async getNewApplicationTerms(locationId: string = '15470'): Promise<any> {
+    async getNewApplicationTerms(locationId: string = '6594'): Promise<any> {
         return this.makeRequest<any>(`/merchant_management/v2/credit_applications/new?location_id=${locationId}`, {
             method: 'GET',
         });
@@ -327,7 +327,7 @@ class AlphaeonApiService {
     async submitCreditApplication(applicationData: any): Promise<any> {
         // Ensure location_id is present in applicationData
         if (!applicationData.location_id) {
-            applicationData.location_id = '15470'; // Default production location
+            applicationData.location_id = '6594'; // Default sandbox test location
         }
 
         return this.makeRequest<any>('/merchant_management/v2/credit_applications/apply', {
@@ -358,7 +358,7 @@ class AlphaeonApiService {
     /**
      * Void a transaction (V2)
      */
-    async voidTransaction(transactionId: string | number, locationId: string = '15470'): Promise<any> {
+    async voidTransaction(transactionId: string | number, locationId: string = '6594'): Promise<any> {
         return this.makeRequest<any>('/v2/transactions/void', {
             method: 'PATCH',
             body: JSON.stringify({
@@ -371,7 +371,7 @@ class AlphaeonApiService {
     /**
      * Process a refund (V2)
      */
-    async refundTransaction(transactionId: string | number, amount: number, accountMemberId: string | number, locationId: string = '15470', comment?: string): Promise<any> {
+    async refundTransaction(transactionId: string | number, amount: number, accountMemberId: string | number, locationId: string = '6594', comment?: string): Promise<any> {
         return this.makeRequest<any>('/v2/transactions/refund', {
             method: 'POST',
             body: JSON.stringify({
@@ -387,7 +387,7 @@ class AlphaeonApiService {
     /**
      * Get transaction details (V2)
      */
-    async getTransactionV2(transactionId: string | number, locationId: string = '15470'): Promise<any> {
+    async getTransactionV2(transactionId: string | number, locationId: string = '6594'): Promise<any> {
         return this.makeRequest<any>(`/v2/transactions/${transactionId}?location_id=${locationId}`, {
             method: 'GET'
         });
