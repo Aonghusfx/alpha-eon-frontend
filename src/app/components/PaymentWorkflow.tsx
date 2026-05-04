@@ -442,14 +442,15 @@ export function PaymentWorkflow({
         !isAdvitalUpfrontApplied;
       let cardAuthId = "";
 
+      // TEMPORARILY DISABLED FOR TESTING - TODO: Re-enable after testing
       // Safety check for minimum finance amount
-      if (data.paymentMethod === 'finance') {
-        const financedAmount = amount - (data.upfrontPayment || 0);
-        if (financedAmount < 250) {
-          toast.error("Finance is not possible for amounts less than $250.00.");
-          return;
-        }
-      }
+      // if (data.paymentMethod === 'finance') {
+      //   const financedAmount = amount - (data.upfrontPayment || 0);
+      //   if (financedAmount < 250) {
+      //     toast.error("Finance is not possible for amounts less than $250.00.");
+      //     return;
+      //   }
+      // }
 
       // Phase 1: Upfront Card Payment (if applicable)
       if (data.paymentMethod === 'full' || hasUpfrontPayment) {
@@ -1082,12 +1083,14 @@ export function PaymentWorkflow({
                         disabled={
                           !paymentData.selectedPlanObject ||
                           isSearchingAccount ||
-                          (orderAmount - (paymentData.upfrontPayment || 0) < 250) ||
+                          // TEMPORARILY DISABLED FOR TESTING - TODO: Re-enable after testing
+                          // (orderAmount - (paymentData.upfrontPayment || 0) < 250) ||
                           ((paymentData.upfrontPayment || 0) > 0 && !paymentData.advitalUpfrontPaid)
                         }
                         className={`px-10 h-12 rounded-lg font-black transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2 ${paymentData.selectedPlanObject &&
                           !isSearchingAccount &&
-                          (orderAmount - (paymentData.upfrontPayment || 0) >= 250) &&
+                          // TEMPORARILY DISABLED FOR TESTING - TODO: Re-enable after testing
+                          // (orderAmount - (paymentData.upfrontPayment || 0) >= 250) &&
                           !((paymentData.upfrontPayment || 0) > 0 && !paymentData.advitalUpfrontPaid)
                           ? 'bg-slate-900 text-white hover:bg-black shadow-lg shadow-slate-200'
                           : 'bg-slate-100 text-slate-400 cursor-not-allowed'

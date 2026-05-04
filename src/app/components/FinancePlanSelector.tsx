@@ -34,7 +34,8 @@ export function FinancePlanSelector({
   const total = orderAmount;
   const remainingAmount = total - (upfrontPayment || 0);
   // const hasUpfront = (upfrontPayment || 0) > 0;
-  const isFinancePossible = remainingAmount >= 250;
+  // TEMPORARILY DISABLED FOR TESTING - TODO: Re-enable after testing
+  const isFinancePossible = true; // remainingAmount >= 250;
 
   const handleUpfrontPaymentChange = (value: string) => {
     const cleaned = value.replace(/[^0-9.]/g, '');
