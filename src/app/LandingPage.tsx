@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { ShieldCheck } from 'lucide-react';
 import FinanceIcon from "../assets/icons/finance_logo.png";
 import { PaymentWorkflow } from './components/PaymentWorkflow';
@@ -12,7 +12,27 @@ const PaymentCheckout = () => {
   const [goToFinanceStep2, setGoToFinanceStep2] = useState(false);
   const [formData, setFormData] = useState<any>({});
 
-  const baseAmount = 802.00;
+  // Parse URL query parameters
+  const externalParams = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    const amount = params.get('amount');
+    const locationId = params.get('locationId');
+    const contactId = params.get('contactId');
+    const advitalUpfrontAmount = params.get('advitalUpfrontAmount');
+    const advitalTransactionId = params.get('advitalTransactionId');
+    const publishableKey = params.get('publishableKey');
+
+    return {
+      amount: amount ? parseFloat(amount) : undefined,
+      locationId: locationId || undefined,
+      contactId: contactId || undefined,
+      advitalUpfrontAmount: advitalUpfrontAmount ? parseFloat(advitalUpfrontAmount) : undefined,
+      advitalTransactionId: advitalTransactionId || undefined,
+      publishableKey: publishableKey || undefined,
+    };
+  }, []);
+
+  const baseAmount = externalParams.amount || 802.00;
 
   const userName = "Aonghus O'Heocha";
   const userPhone = "+353879077030";
@@ -39,7 +59,11 @@ const PaymentCheckout = () => {
   };
 
   if (goToFinanceStep2) {
-    return <PaymentWorkflow initialStep={2} initialPaymentMethod="finance" />;
+    return <PaymentWorkflow
+      initialStep={2}
+      initialPaymentMethod="finance"
+      externalParams={externalParams}
+    />;
   }
 
   return (

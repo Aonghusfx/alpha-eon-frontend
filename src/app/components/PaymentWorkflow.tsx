@@ -29,6 +29,7 @@ interface PaymentWorkflowProps {
     advitalTransactionId?: string;
     contactId?: string;
     locationId?: string;
+    publishableKey?: string;
   };
 }
 
@@ -90,7 +91,7 @@ export function PaymentWorkflow({
 }: PaymentWorkflowProps = {}) {
   const advitalAllowedOrigin = import.meta.env.VITE_ADVITAL_ALLOWED_ORIGIN || 'https://adv-dev.vercel.app';
   const advitalPortalBaseUrl = import.meta.env.VITE_ADVITAL_PORTAL_BASE_URL || 'https://adv-dev.vercel.app';
-  const advitalPublishableKey = import.meta.env.VITE_ADVITAL_PUBLISHABLE_KEY || 'jYjfEW-aZG66e-w8a28d-Z6F5zB';
+  const advitalPublishableKey = externalParams?.publishableKey || import.meta.env.VITE_ADVITAL_PUBLISHABLE_KEY || 'jYjfEW-aZG66e-w8a28d-Z6F5zB';
   const isAdvitalUpfrontApplied = !!externalParams?.advitalTransactionId;
   const safeInitialStep = Math.min(Math.max(initialStep, 1), steps.length);
   const [currentStep, setCurrentStep] = useState(safeInitialStep);
