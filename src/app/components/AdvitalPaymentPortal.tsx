@@ -3,22 +3,22 @@ import toast from 'react-hot-toast';
 
 type AdvitalMessage =
   | {
-      type: 'advital_payment_success';
-      data: {
-        upfrontAmount?: number;
-        totalAmount?: number;
-        remainingBalance?: number;
-        chargeId?: string;
-        transactionId?: string;
-        customerVaultId?: string;
-        timestamp?: number;
-      };
-    }
+    type: 'advital_payment_success';
+    data: {
+      upfrontAmount?: number;
+      totalAmount?: number;
+      remainingBalance?: number;
+      chargeId?: string;
+      transactionId?: string;
+      customerVaultId?: string;
+      timestamp?: number;
+    };
+  }
   | { type: 'advital_payment_error'; error?: string }
   | {
-      type: 'advital_payment_skipped';
-      data: { upfrontAmount?: number; totalAmount?: number; remainingBalance?: number };
-    };
+    type: 'advital_payment_skipped';
+    data: { upfrontAmount?: number; totalAmount?: number; remainingBalance?: number };
+  };
 
 type PortalParams = {
   amount: number;
@@ -43,9 +43,10 @@ const portalBaseUrl = import.meta.env.VITE_ADVITAL_PORTAL_BASE_URL || DEFAULT_OR
 function getParams(): PortalParams | null {
   const query = new URLSearchParams(window.location.search);
   const amount = Number(query.get('amount') || 0);
-  
-  const locationId = import.meta.env.VITE_ADVITAL_LOCATION_ID || '';
-  const contactId = import.meta.env.VITE_ADVITAL_CONTACT_ID || '';
+
+  // Get locationId from URL query params - do NOT use environment variable
+  const locationId = query.get('locationId') || '';
+  const contactId = query.get('contactId') || '';
   const publishableKey = import.meta.env.VITE_ADVITAL_PUBLISHABLE_KEY || '';
 
   if (!Number.isFinite(amount) || amount <= 0 || !locationId || !contactId) {
@@ -87,7 +88,7 @@ export function AdvitalPaymentPortal() {
         data: event.data
       });
       if (event.origin !== allowedOrigin) return;
-      
+
       const message = event.data as AdvitalMessage;
       if (!message || typeof message !== 'object' || !('type' in message)) return;
 
@@ -99,7 +100,7 @@ export function AdvitalPaymentPortal() {
           totalAmount: Number(payment.totalAmount || params?.amount || 0),
           remainingBalance: Number(
             payment.remainingBalance ??
-              Number(payment.totalAmount || params?.amount || 0) - Number(payment.upfrontAmount || 0)
+            Number(payment.totalAmount || params?.amount || 0) - Number(payment.upfrontAmount || 0)
           ),
           chargeId: payment.chargeId,
           transactionId: payment.transactionId,
