@@ -34,8 +34,7 @@ export function FinancePlanSelector({
   const total = orderAmount;
   const remainingAmount = total - (upfrontPayment || 0);
   // const hasUpfront = (upfrontPayment || 0) > 0;
-  // TEMPORARILY DISABLED FOR TESTING - TODO: Re-enable after testing
-  const isFinancePossible = true; // remainingAmount >= 250;
+  const isFinancePossible = remainingAmount >= 250;
 
   const handleUpfrontPaymentChange = (value: string) => {
     const cleaned = value.replace(/[^0-9.]/g, '');
@@ -44,8 +43,9 @@ export function FinancePlanSelector({
     if (cleaned === '' || isNaN(numValue)) {
       onUpfrontPaymentChange(undefined);
     } else {
-      // Cap at total amount to prevent exceeding order total
-      const cappedValue = Math.min(Math.max(0, numValue), total);
+      // Cap at total - 250 to ensure minimum finance amount of $250
+      const maxUpfront = Math.max(0, total - 250);
+      const cappedValue = Math.min(Math.max(0, numValue), maxUpfront);
       onUpfrontPaymentChange(cappedValue);
     }
   };
@@ -77,7 +77,7 @@ export function FinancePlanSelector({
               />
             </div>
             <p className="text-[10px] font-bold text-slate-400 mt-3 ml-1 uppercase tracking-tight">
-              Max Budget: ${total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              Max Budget: ${(Math.max(0, total - 250)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
 
             {/* Payment Method Selector — shown everytime, styled exactly like homepage */}

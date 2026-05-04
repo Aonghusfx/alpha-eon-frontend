@@ -82,13 +82,14 @@ export function PaymentMethodSelector({
           </div> */}
 
           {/* Finance Option */}
-          <div
-            className={`group relative border-2 rounded-2xl p-6 transition-all duration-300 ${paymentMethod === 'finance'
-              ? 'border-red-600 bg-red-50/50 shadow-lg shadow-red-100 cursor-pointer'
-              : 'border-slate-100 hover:border-slate-200 bg-white cursor-pointer'
-              }`}
-            onClick={() => onPaymentMethodChange('finance')}
-          >
+          {orderAmount >= 250 && (
+            <div
+              className={`group relative border-2 rounded-2xl p-6 transition-all duration-300 ${paymentMethod === 'finance'
+                ? 'border-red-600 bg-red-50/50 shadow-lg shadow-red-100 cursor-pointer'
+                : 'border-slate-100 hover:border-slate-200 bg-white cursor-pointer'
+                }`}
+              onClick={() => onPaymentMethodChange('finance')}
+            >
             <div className="flex items-start gap-5">
               <div className="mt-1">
                 <RadioGroupItem
@@ -119,6 +120,7 @@ export function PaymentMethodSelector({
               </div>
             </div>
           </div>
+          )}
         </RadioGroup>
         {paymentMethod === 'finance' && (
           <p className="text-center text-red-600 text-[10px] font-black uppercase tracking-[0.2em] mt-6">

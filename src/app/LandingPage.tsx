@@ -98,12 +98,12 @@ const PaymentCheckout = () => {
                   <PaymentMethodToggle
                     paymentMethod={paymentMethod}
                     onMethodChange={setPaymentMethod}
-                    showFinance={true}
+                    showFinance={baseAmount >= 250}
                   />
 
                 </div>
 
-                {paymentMethod === 'finance' && (
+                {paymentMethod === 'finance' && baseAmount >= 250 && (
                   <button
                     onClick={() => setGoToFinanceStep2(true)}
                     className="w-full border-2 border-red-500 rounded-2xl p-5 bg-white hover:bg-red-50 transition-colors text-left"

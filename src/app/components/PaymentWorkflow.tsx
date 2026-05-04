@@ -124,6 +124,7 @@ export function PaymentWorkflow({
   const [plaidVerificationUrl, setPlaidVerificationUrl] = useState<string | null>(null);
   const [iframeApplicationStatus, setIframeApplicationStatus] = useState<string | null>(null);
   const [showAdvitalUpfrontIframe, setShowAdvitalUpfrontIframe] = useState(false);
+  const [advitalTransactionId, setAdvitalTransactionId] = useState<string>('');
 
   // Use refs to avoid stale closures in the postMessage event listener
   const paymentDataRef = useRef(paymentData);
@@ -428,6 +429,9 @@ export function PaymentWorkflow({
         (data.upfrontPayment || 0) > 0 &&
         !data.advitalUpfrontPaid
       ) {
+        // Generate unique transaction ID to prevent duplicate detection
+        const uniqueTransactionId = `TXN-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        setAdvitalTransactionId(uniqueTransactionId);
         setShowAdvitalUpfrontIframe(true);
         setIsSearchingAccount(false);
         toast('Complete upfront payment in the secure iframe first.', { icon: '💳' });
@@ -442,15 +446,14 @@ export function PaymentWorkflow({
         !isAdvitalUpfrontApplied;
       let cardAuthId = "";
 
-      // TEMPORARILY DISABLED FOR TESTING - TODO: Re-enable after testing
       // Safety check for minimum finance amount
-      // if (data.paymentMethod === 'finance') {
-      //   const financedAmount = amount - (data.upfrontPayment || 0);
-      //   if (financedAmount < 250) {
-      //     toast.error("Finance is not possible for amounts less than $250.00.");
-      //     return;
-      //   }
-      // }
+      if (data.paymentMethod === 'finance') {
+        const financedAmount = amount - (data.upfrontPayment || 0);
+        if (financedAmount < 250) {
+          toast.error("Finance is not possible for amounts less than $250.00.");
+          return;
+        }
+      }
 
       // Phase 1: Upfront Card Payment (if applicable)
       if (data.paymentMethod === 'full' || hasUpfrontPayment) {
@@ -1061,11 +1064,23 @@ export function PaymentWorkflow({
                       )}
 
                       {paymentData.advitalUpfrontPaid && (
-                        <div className="mt-8 p-4 bg-green-50 rounded-xl border border-green-100 flex items-center gap-3">
-                          <Check className="w-5 h-5 text-green-600" />
-                          <p className="text-sm font-bold text-green-800 uppercase tracking-tight">
-                            Upfront Payment Completed Successfully
-                          </p>
+                        <div className="mt-8 p-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl border-2 border-green-200 shadow-lg animate-in fade-in slide-in-from-bottom-4 duration-500">
+                          <div className="flex items-start gap-4">
+                            <div className="flex-shrink-0 w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
+                              <Check className="w-7 h-7 text-white stroke-[3]" />
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="text-lg font-black text-green-900 uppercase tracking-tight mb-1">
+                                Upfront Payment Successful!
+                              </h3>
+                              <p className="text-sm font-bold text-green-700 mb-2">
+                                ${(paymentData.upfrontPayment || 0).toFixed(2)} has been charged successfully
+                              </p>
+                              <p className="text-xs font-medium text-green-600">
+                                You can now proceed to submit the sale for the remaining amount
+                              </p>
+                            </div>
+                          </div>
                         </div>
                       )}
                     </FinancePlanSelector>
@@ -1083,14 +1098,12 @@ export function PaymentWorkflow({
                         disabled={
                           !paymentData.selectedPlanObject ||
                           isSearchingAccount ||
-                          // TEMPORARILY DISABLED FOR TESTING - TODO: Re-enable after testing
-                          // (orderAmount - (paymentData.upfrontPayment || 0) < 250) ||
+                          (orderAmount - (paymentData.upfrontPayment || 0) < 250) ||
                           ((paymentData.upfrontPayment || 0) > 0 && !paymentData.advitalUpfrontPaid)
                         }
                         className={`px-10 h-12 rounded-lg font-black transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2 ${paymentData.selectedPlanObject &&
                           !isSearchingAccount &&
-                          // TEMPORARILY DISABLED FOR TESTING - TODO: Re-enable after testing
-                          // (orderAmount - (paymentData.upfrontPayment || 0) >= 250) &&
+                          (orderAmount - (paymentData.upfrontPayment || 0) >= 250) &&
                           !((paymentData.upfrontPayment || 0) > 0 && !paymentData.advitalUpfrontPaid)
                           ? 'bg-slate-900 text-white hover:bg-black shadow-lg shadow-slate-200'
                           : 'bg-slate-100 text-slate-400 cursor-not-allowed'
@@ -1374,7 +1387,7 @@ export function PaymentWorkflow({
                 </div>
               ) : (
                 <iframe
-                  src={`${advitalPortalBaseUrl}/finance-payment-portal?amount=${paymentData.upfrontPayment || 0}&locationId=${advitalLocationId}&contactId=${externalParams?.contactId || 'contact_demo'}&publishableKey=${advitalPublishableKey}`}
+                  src={`${advitalPortalBaseUrl}/finance-payment-portal?amount=${paymentData.upfrontPayment || 0}&locationId=${advitalLocationId}&contactId=${externalParams?.contactId || 'contact_demo'}&publishableKey=${advitalPublishableKey}&orderId=${advitalTransactionId}`}
                   className="w-full h-full border-0"
                   title="Advital Upfront Payment"
                 />
