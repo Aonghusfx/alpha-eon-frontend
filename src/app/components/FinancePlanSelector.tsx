@@ -43,10 +43,8 @@ export function FinancePlanSelector({
     if (cleaned === '' || isNaN(numValue)) {
       onUpfrontPaymentChange(undefined);
     } else {
-      // If total is less than $250, upfront payment cannot exceed total
-      // Otherwise, cap at total - 250 to ensure minimum finance amount
-      const maxUpfront = total >= 250 ? total - 250 : total;
-      const cappedValue = Math.min(Math.max(0, numValue), maxUpfront);
+      // Cap at total amount to prevent exceeding order total
+      const cappedValue = Math.min(Math.max(0, numValue), total);
       onUpfrontPaymentChange(cappedValue);
     }
   };
@@ -78,7 +76,7 @@ export function FinancePlanSelector({
               />
             </div>
             <p className="text-[10px] font-bold text-slate-400 mt-3 ml-1 uppercase tracking-tight">
-              Max Budget: ${(Math.max(0, total - 250)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              Max Budget: ${total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
 
             {/* Payment Method Selector — shown everytime, styled exactly like homepage */}
