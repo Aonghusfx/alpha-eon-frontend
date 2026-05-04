@@ -43,7 +43,10 @@ export function FinancePlanSelector({
     if (cleaned === '' || isNaN(numValue)) {
       onUpfrontPaymentChange(undefined);
     } else {
-      const cappedValue = Math.min(numValue, total - 250);
+      // If total is less than $250, upfront payment cannot exceed total
+      // Otherwise, cap at total - 250 to ensure minimum finance amount
+      const maxUpfront = total >= 250 ? total - 250 : total;
+      const cappedValue = Math.min(Math.max(0, numValue), maxUpfront);
       onUpfrontPaymentChange(cappedValue);
     }
   };

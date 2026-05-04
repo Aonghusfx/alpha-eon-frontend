@@ -186,6 +186,22 @@ export function PaymentWorkflow({
     fetchOrder();
   }, [externalParams]);
 
+  // Validate payment method based on order amount
+  useEffect(() => {
+    if (orderAmount > 0 && orderAmount < 250 && paymentData.paymentMethod === 'finance') {
+      console.warn(`⚠️ Order amount $${orderAmount} is less than minimum $250 for financing. Resetting payment method.`);
+      setPaymentData((prev: any) => ({ ...prev, paymentMethod: '' }));
+      setCurrentStep(1);
+      toast.error("Finance is not available for amounts less than $250.00. Please choose another payment method.");
+    }
+
+    // Reset invalid upfront payment values
+    if (paymentData.upfrontPayment && paymentData.upfrontPayment < 0) {
+      console.warn(`⚠️ Invalid upfront payment $${paymentData.upfrontPayment}. Resetting to 0.`);
+      setPaymentData((prev: any) => ({ ...prev, upfrontPayment: 0 }));
+    }
+  }, [orderAmount, paymentData.paymentMethod, paymentData.upfrontPayment]);
+
   // Alphaeon integration
   const {
     isLoading: alphaeonLoading,
