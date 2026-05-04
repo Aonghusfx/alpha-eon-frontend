@@ -97,7 +97,8 @@ export function PaymentWorkflow({
   const [maxStepReached, setMaxStepReached] = useState(safeInitialStep);
   const [iframeTrackingGuid, setIframeTrackingGuid] = useState<string | null>(null);
   const locationId = import.meta.env.VITE_ALPHAEON_LOCATION_ID || '6594';
-  const advitalLocationId = import.meta.env.VITE_ADVITAL_LOCATION_ID || 'test123';
+  // Use locationId from externalParams if provided, otherwise fall back to env variable
+  const advitalLocationId = externalParams?.locationId || import.meta.env.VITE_ADVITAL_LOCATION_ID || 'test123';
 
   const [paymentData, setPaymentData] = useState<any>({
     paymentMethod: initialPaymentMethod,
