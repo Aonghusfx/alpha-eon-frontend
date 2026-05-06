@@ -420,6 +420,7 @@ export function PaymentWorkflow({
   // Notify Advital about payment completion
   const notifyAdvitalPaymentSuccess = async (paymentDetails: {
     invoiceId?: string;
+    locationId?: string;
     transactionId: string | number;
     totalAmount: number;
     upfrontAmount: number;
@@ -435,15 +436,22 @@ export function PaymentWorkflow({
         return;
       }
 
+      if (!paymentDetails.locationId) {
+        console.warn('⚠️ No locationId provided, skipping Advital notification');
+        toast.error('Cannot update invoice: location ID missing');
+        return;
+      }
+
       console.log('📤 Notifying Advital about payment completion:', paymentDetails);
       
-      // Call Advital API to update invoice status
+      // Call Advital API to update invoice status per ALPHAEON-API-DOCS.md
       const response = await fetch(`${advitalPortalBaseUrl}/api/invoices/${paymentDetails.invoiceId}/mark-paid`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          locationId: paymentDetails.locationId, // REQUIRED per API docs
           transactionId: paymentDetails.transactionId,
           totalAmount: paymentDetails.totalAmount,
           upfrontPayment: {
@@ -463,12 +471,14 @@ export function PaymentWorkflow({
       });
 
       if (!response.ok) {
-        console.error('❌ Failed to notify Advital:', response.statusText);
+        const errorText = await response.text();
+        console.error('❌ Failed to notify Advital:', response.statusText, errorText);
         toast.error('Payment successful but failed to update invoice status. Please contact support.');
       } else {
         console.log('✅ Successfully notified Advital about payment completion');
         const result = await response.json();
         console.log('📥 Advital response:', result);
+        toast.success('Invoice status updated successfully!');
       }
     } catch (error) {
       console.error('❌ Error notifying Advital:', error);
@@ -630,6 +640,7 @@ export function PaymentWorkflow({
         // Notify Advital about successful payment
         await notifyAdvitalPaymentSuccess({
           invoiceId: externalParams?.orderId,
+          locationId: advitalLocationId,
           transactionId: resData.transaction_id || resData.id,
           totalAmount: amount,
           upfrontAmount: data.upfrontPayment || 0,
