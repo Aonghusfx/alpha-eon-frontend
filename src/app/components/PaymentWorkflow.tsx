@@ -417,6 +417,66 @@ export function PaymentWorkflow({
     toast.dismiss(toastId);
   }, [paymentData.upfrontPayment, paymentData.advitalUpfrontPaid, currentStep]);
 
+  // Notify Advital about payment completion
+  const notifyAdvitalPaymentSuccess = async (paymentDetails: {
+    invoiceId?: string;
+    transactionId: string | number;
+    totalAmount: number;
+    upfrontAmount: number;
+    financedAmount: number;
+    upfrontChargeId?: string;
+    alphaeonTransactionId: string | number;
+    status: string;
+    paymentMethod: string;
+  }) => {
+    try {
+      if (!paymentDetails.invoiceId) {
+        console.warn('⚠️ No orderId/invoiceId provided, skipping Advital notification');
+        return;
+      }
+
+      console.log('📤 Notifying Advital about payment completion:', paymentDetails);
+      
+      // Call Advital API to update invoice status
+      const response = await fetch(`${advitalPortalBaseUrl}/api/invoices/${paymentDetails.invoiceId}/mark-paid`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          transactionId: paymentDetails.transactionId,
+          totalAmount: paymentDetails.totalAmount,
+          upfrontPayment: {
+            amount: paymentDetails.upfrontAmount,
+            chargeId: paymentDetails.upfrontChargeId,
+            method: 'card'
+          },
+          financingDetails: {
+            amount: paymentDetails.financedAmount,
+            provider: 'alphaeon',
+            transactionId: paymentDetails.alphaeonTransactionId
+          },
+          status: paymentDetails.status,
+          paymentMethod: paymentDetails.paymentMethod,
+          paidAt: new Date().toISOString()
+        })
+      });
+
+      if (!response.ok) {
+        console.error('❌ Failed to notify Advital:', response.statusText);
+        toast.error('Payment successful but failed to update invoice status. Please contact support.');
+      } else {
+        console.log('✅ Successfully notified Advital about payment completion');
+        const result = await response.json();
+        console.log('📥 Advital response:', result);
+      }
+    } catch (error) {
+      console.error('❌ Error notifying Advital:', error);
+      // Don't throw error - payment was successful, just notification failed
+      toast.warning('Payment successful but invoice update pending. Please contact support if status doesn\'t update.');
+    }
+  };
+
   const handleFinalSubmit = async () => {
     setIsSearchingAccount(true);
     setTransactionError(null);
@@ -565,6 +625,19 @@ export function PaymentWorkflow({
           transactionId: resData.transaction_id || resData.id,
           isSignaturePending: true,
           signatureLink: receiptUrl || null
+        });
+
+        // Notify Advital about successful payment
+        await notifyAdvitalPaymentSuccess({
+          invoiceId: externalParams?.orderId,
+          transactionId: resData.transaction_id || resData.id,
+          totalAmount: amount,
+          upfrontAmount: data.upfrontPayment || 0,
+          financedAmount: amount - (data.upfrontPayment || 0),
+          upfrontChargeId: data.advitalChargeId,
+          alphaeonTransactionId: resData.transaction_id,
+          status: 'completed',
+          paymentMethod: 'alphaeon_finance'
         });
 
         toast.success("Please complete the secure signature below!");
