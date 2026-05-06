@@ -90,7 +90,7 @@ export function OrderSummary({
             <ShoppingBag className="w-8 h-8 text-slate-400" />
           </div>
           <div className="flex-1">
-            <h3 className="text-[15px] font-black text-slate-800 leading-tight mb-0.5">{productName || 'Breast Augmentation'}</h3>
+            <h3 className="text-[15px] font-black text-slate-800 leading-tight mb-0.5">{productName || 'Medical Procedure'}</h3>
             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{description || 'Consultation included'}</p>
             <p className="text-[11px] font-black text-slate-600 uppercase mt-1">Procedure: 1</p>
           </div>

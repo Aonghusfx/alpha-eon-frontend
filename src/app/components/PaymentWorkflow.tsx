@@ -30,6 +30,8 @@ interface PaymentWorkflowProps {
     contactId?: string;
     locationId?: string;
     publishableKey?: string;
+    procedureName?: string;
+    orderId?: string;
   };
 }
 
@@ -901,7 +903,7 @@ export function PaymentWorkflow({
                 lastName: paymentData.patientInfo?.lastName,
                 ssn: paymentData.patientInfo?.ssn
               } : undefined}
-              productName="Breast Augmentation"
+              productName={externalParams?.procedureName || 'Medical Procedure'}
               description="Consultation included"
               tax={orderData?.tax}
               shipping={orderData?.shipping}

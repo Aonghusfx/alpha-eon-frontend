@@ -21,6 +21,8 @@ const PaymentCheckout = () => {
     const advitalUpfrontAmount = params.get('advitalUpfrontAmount');
     const advitalTransactionId = params.get('advitalTransactionId');
     const publishableKey = params.get('publishableKey');
+    const procedureName = params.get('procedureName');
+    const orderId = params.get('orderId');
 
     return {
       amount: amount ? parseFloat(amount) : undefined,
@@ -29,6 +31,8 @@ const PaymentCheckout = () => {
       advitalUpfrontAmount: advitalUpfrontAmount ? parseFloat(advitalUpfrontAmount) : undefined,
       advitalTransactionId: advitalTransactionId || undefined,
       publishableKey: publishableKey || undefined,
+      procedureName: procedureName || undefined,
+      orderId: orderId || undefined,
     };
   }, []);
 
