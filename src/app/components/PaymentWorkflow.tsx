@@ -443,7 +443,7 @@ export function PaymentWorkflow({
       }
 
       console.log('📤 Notifying Advital about payment completion:', paymentDetails);
-      
+
       // Call Advital API to update invoice status per ALPHAEON-API-DOCS.md
       const response = await fetch(`${advitalPortalBaseUrl}/api/invoices/${paymentDetails.invoiceId}/mark-paid`, {
         method: 'POST',

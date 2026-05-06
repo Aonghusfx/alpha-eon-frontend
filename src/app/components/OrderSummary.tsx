@@ -115,15 +115,15 @@ export function OrderSummary({
 
         {/* Totals Section */}
         <div className="space-y-4 mb-8">
-           <div className="flex justify-between items-center text-[13px]">
+          <div className="flex justify-between items-center text-[13px]">
             <span className="text-slate-500 font-bold uppercase tracking-tight">Total Cost</span>
             <span className="text-slate-800 font-black">${total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           </div>
           <div className="flex justify-between items-end">
-             <span className="text-[15px] font-black text-slate-800 uppercase tracking-tighter">Amount to Finance</span>
-             <span className="text-2xl font-black text-slate-900 tracking-tighter">
-                ${remainingAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-             </span>
+            <span className="text-[15px] font-black text-slate-800 uppercase tracking-tighter">Amount to Finance</span>
+            <span className="text-2xl font-black text-slate-900 tracking-tighter">
+              ${remainingAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
           </div>
         </div>
 
@@ -132,21 +132,21 @@ export function OrderSummary({
           <div className="mb-8 p-6 bg-[#ebf5ff] rounded-2xl border border-[#d6eaff] transition-all animate-in zoom-in-95 duration-500">
             <div className="space-y-1">
               <div className="flex items-center gap-2 mb-2">
-                 <Tag className="w-3.5 h-3.5 text-blue-500" />
-                 <span className="text-[11px] font-black text-blue-500 uppercase tracking-widest">Finance Plan</span>
+                <Tag className="w-3.5 h-3.5 text-blue-500" />
+                <span className="text-[11px] font-black text-blue-500 uppercase tracking-widest">Finance Plan</span>
               </div>
-              
+
               <p className="text-[13px] font-black text-blue-800 uppercase tracking-tight">
                 {isRevolving ? 'REVOLVING' : `${selectedPlanObject?.term_months || financePlan} MONTHLY PAYMENTS`}
               </p>
-              
+
               <div className="flex items-baseline gap-1 py-1">
                 <span className="text-2xl font-black text-blue-600">
                   ${(selectedPlanObject?.monthly_payment || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
                 <span className="text-[13px] font-black text-blue-600">/mo</span>
               </div>
-              
+
               <p className="text-[11px] font-black text-blue-400 uppercase tracking-widest">
                 {selectedPlanObject?.apr === 0 ? '0% APR' : `${((selectedPlanObject?.apr || 0) * 100).toFixed(0)}% APR`}
               </p>
@@ -157,50 +157,50 @@ export function OrderSummary({
         {/* Alphaeon Account Details */}
         {accountData && accountData.accountNumber && (
           <div className="mb-8 p-6 bg-green-50 rounded-2xl border border-green-200 transition-all animate-in zoom-in-95 duration-500">
-             <div className="space-y-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-[11px] font-black text-green-700 uppercase tracking-widest">Account Details</span>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-y-4 gap-x-2">
-                  <div className="flex flex-col col-span-2">
-                    <span className="text-[10px] text-green-600 font-bold uppercase tracking-widest mb-1">Account Number</span>
-                    <span className="font-mono font-bold text-sm tracking-widest text-green-900 bg-white/60 px-2 py-1 rounded border border-green-100 w-fit">
-                      {accountData.accountNumber ? `${accountData.accountNumber.slice(0, 4)}********${accountData.accountNumber.slice(-4)}` : 'N/A'}
-                    </span>
-                  </div>
-                  
-                  <div className="flex flex-col col-span-2">
-                    <span className="text-[10px] text-green-600 font-bold uppercase tracking-widest mb-1">Cardholder Name</span>
-                    <span className="font-bold text-[13px] text-green-900 uppercase">
-                      {accountData.firstName} {accountData.lastName}
-                    </span>
-                  </div>
-                  
-                  <div className="flex flex-col">
-                    <span className="text-[10px] text-green-600 font-bold uppercase tracking-widest mb-1">Credit Limit</span>
-                    <span className="font-bold text-sm text-green-900">
-                      ${accountData.creditLimit?.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) ?? '0'}
-                    </span>
-                  </div>
-                  
-                  {accountData.availableCredit !== undefined && (
-                    <div className="flex flex-col border-l pl-2 border-green-200">
-                      <span className="text-[10px] text-green-600 font-bold uppercase tracking-widest mb-1">Available</span>
-                      <span className="font-bold text-sm text-green-900">
-                        ${accountData.availableCredit?.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                      </span>
-                    </div>
-                  )}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[11px] font-black text-green-700 uppercase tracking-widest">Account Details</span>
+              </div>
 
-                  <div className="flex flex-col col-span-2 mt-1">
-                    <span className="text-[10px] text-green-600 font-bold uppercase tracking-widest mb-1">SSN (Linked)</span>
-                    <span className="font-mono font-bold text-xs text-green-900">
-                      ***-**-{accountData.ssn?.slice(-4) || 'N/A'}
+              <div className="grid grid-cols-2 gap-y-4 gap-x-2">
+                <div className="flex flex-col col-span-2">
+                  <span className="text-[10px] text-green-600 font-bold uppercase tracking-widest mb-1">Account Number</span>
+                  <span className="font-mono font-bold text-sm tracking-widest text-green-900 bg-white/60 px-2 py-1 rounded border border-green-100 w-fit">
+                    {accountData.accountNumber ? `${accountData.accountNumber.slice(0, 4)}********${accountData.accountNumber.slice(-4)}` : 'N/A'}
+                  </span>
+                </div>
+
+                <div className="flex flex-col col-span-2">
+                  <span className="text-[10px] text-green-600 font-bold uppercase tracking-widest mb-1">Cardholder Name</span>
+                  <span className="font-bold text-[13px] text-green-900 uppercase">
+                    {accountData.firstName} {accountData.lastName}
+                  </span>
+                </div>
+
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-green-600 font-bold uppercase tracking-widest mb-1">Credit Limit</span>
+                  <span className="font-bold text-sm text-green-900">
+                    ${accountData.creditLimit?.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) ?? '0'}
+                  </span>
+                </div>
+
+                {accountData.availableCredit !== undefined && (
+                  <div className="flex flex-col border-l pl-2 border-green-200">
+                    <span className="text-[10px] text-green-600 font-bold uppercase tracking-widest mb-1">Available</span>
+                    <span className="font-bold text-sm text-green-900">
+                      ${accountData.availableCredit?.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                     </span>
                   </div>
+                )}
+
+                <div className="flex flex-col col-span-2 mt-1">
+                  <span className="text-[10px] text-green-600 font-bold uppercase tracking-widest mb-1">SSN (Linked)</span>
+                  <span className="font-mono font-bold text-xs text-green-900">
+                    ***-**-{accountData.ssn?.slice(-4) || 'N/A'}
+                  </span>
                 </div>
-             </div>
+              </div>
+            </div>
           </div>
         )}
 
