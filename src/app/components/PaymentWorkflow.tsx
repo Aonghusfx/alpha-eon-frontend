@@ -133,6 +133,7 @@ export function PaymentWorkflow({
   const orderAmountRef = useRef(orderAmount);
   const locationIdRef = useRef(locationId);
   const advitalLocationIdRef = useRef(advitalLocationId);
+  const handleFinalSubmitRef = useRef<(() => Promise<void>) | null>(null);
 
   console.log(paymentDataRef?.current?.upfrontPayment, "paymentDataRef.current")
 
@@ -373,7 +374,21 @@ export function PaymentWorkflow({
         });
 
         setShowAdvitalUpfrontIframe(false);
-        toast.success('Upfront payment received!');
+        toast.success('✅ Upfront payment received! Proceeding to financing...', { duration: 3000 });
+        
+        // Auto-submit after a brief delay to allow state to update and user to see success message
+        setTimeout(() => {
+          console.log('🚀 Auto-submitting to continue to Alphaeon financing...');
+          if (handleFinalSubmitRef.current) {
+            handleFinalSubmitRef.current().catch((err) => {
+              console.error('Auto-submit failed:', err);
+              toast.error('Failed to proceed to financing. Please click Submit Sale.');
+            });
+          } else {
+            console.error('handleFinalSubmitRef.current is not available');
+            toast.info('Please click "Submit Sale" to continue to financing.');
+          }
+        }, 1500);
       }
 
       if (message.type === 'advital_payment_error') {
@@ -533,6 +548,16 @@ export function PaymentWorkflow({
   };
 
   const handleFinalSubmit = async () => {
+    console.log('\n🎯🎯🎯 handleFinalSubmit CALLED 🎯🎯🎯');
+    console.log('Current state:', {
+      currentStep,
+      paymentMethod: paymentData.paymentMethod,
+      upfrontPayment: paymentData.upfrontPayment,
+      advitalUpfrontPaid: paymentData.advitalUpfrontPaid,
+      accountNumber: paymentData.accountNumber,
+      selectedPlan: paymentData.selectedPlanObject?.name
+    });
+    
     setIsSearchingAccount(true);
     setTransactionError(null);
     clearError();
@@ -625,6 +650,15 @@ export function PaymentWorkflow({
         console.log('🚀 Step 2: Finalizing Alphaeon Transaction...');
         toast("Step 2 of 2: Finalizing financing...", { icon: '🏦' });
 
+        // Validate required fields
+        if (!paymentData.accountNumber) {
+          throw new Error('Account number is missing. Please go back and look up your account.');
+        }
+        
+        if (!paymentData.selectedPlanObject) {
+          throw new Error('Please select a financing plan before continuing.');
+        }
+
         // locationId is now defined at component level
 
         let instrumentId = paymentData.consumerCreditInstrumentId;
@@ -698,6 +732,11 @@ export function PaymentWorkflow({
       setIsSearchingAccount(false);
     }
   };
+
+  // Update ref whenever handleFinalSubmit changes
+  useEffect(() => {
+    handleFinalSubmitRef.current = handleFinalSubmit;
+  }, [handleFinalSubmit]);
 
 
   const handleNext = () => {
