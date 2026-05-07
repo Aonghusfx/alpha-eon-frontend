@@ -14,9 +14,10 @@ interface SuccessStepProps {
   updatePaymentData: (newData: Partial<PaymentData>) => void;
   productName?: string;
   onComplete: () => void;
+  onSignatureConfirmed?: () => Promise<void>;
 }
 
-export function SuccessStep({ paymentData, updatePaymentData, onComplete }: SuccessStepProps) {
+export function SuccessStep({ paymentData, updatePaymentData, onComplete, onSignatureConfirmed }: SuccessStepProps) {
   const [plaidUrl, setPlaidUrl] = useState<string | null>(null);
   const [isSigned, setIsSigned] = useState(false);
   const [canCloseSignatureModal, setCanCloseSignatureModal] = useState(false);
@@ -70,8 +71,17 @@ export function SuccessStep({ paymentData, updatePaymentData, onComplete }: Succ
             });
             setIsSigned(true);
             toast.success("Signature confirmed!");
-            // The iframe should not be auto closed. The Patient should initiate the closing.
-            // onComplete(); // Move to next step
+            
+            // Notify Advital after signature confirmation
+            if (onSignatureConfirmed) {
+              console.log("📤 Calling Advital API after signature confirmation...");
+              try {
+                await onSignatureConfirmed();
+              } catch (error) {
+                console.error("Error notifying Advital:", error);
+              }
+            }
+            
             clearInterval(pollInterval);
           }
         } catch (e) {
@@ -86,7 +96,7 @@ export function SuccessStep({ paymentData, updatePaymentData, onComplete }: Succ
         clearInterval(pollInterval);
       }
     };
-  }, [paymentData.isSignaturePending, paymentData.transactionId, updatePaymentData]);
+  }, [paymentData.isSignaturePending, paymentData.transactionId, updatePaymentData, onSignatureConfirmed]);
 
   const closeSignatureModal = () => {
     updatePaymentData({ isSignaturePending: false });

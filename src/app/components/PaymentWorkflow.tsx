@@ -667,19 +667,8 @@ export function PaymentWorkflow({
           signatureLink: receiptUrl || null
         });
 
-        // Notify Advital about successful payment
-        await notifyAdvitalPaymentSuccess({
-          invoiceId: externalParams?.orderId,
-          locationId: advitalLocationId,
-          transactionId: resData.transaction_id || resData.id,
-          totalAmount: amount,
-          upfrontAmount: data.upfrontPayment || 0,
-          financedAmount: amount - (data.upfrontPayment || 0),
-          upfrontChargeId: data.advitalChargeId,
-          alphaeonTransactionId: resData.transaction_id,
-          status: 'completed',
-          paymentMethod: 'alphaeon_finance'
-        });
+        // NOTE: Advital notification moved to AFTER signature confirmation (in SuccessStep)
+        // This ensures invoice is only marked as paid after the complete process
 
         toast.success("Please complete the secure signature below!");
         setCurrentStep(4);
@@ -1250,6 +1239,21 @@ export function PaymentWorkflow({
                 onComplete={() => {
                   setCurrentStep(5);
                   setMaxStepReached(m => Math.max(m, 5));
+                }}
+                onSignatureConfirmed={async () => {
+                  // Call Advital API after signature confirmation
+                  await notifyAdvitalPaymentSuccess({
+                    invoiceId: externalParams?.orderId,
+                    locationId: advitalLocationId,
+                    transactionId: paymentData.transactionId,
+                    totalAmount: orderAmount,
+                    upfrontAmount: paymentData.upfrontPayment || 0,
+                    financedAmount: orderAmount - (paymentData.upfrontPayment || 0),
+                    upfrontChargeId: paymentData.advitalChargeId,
+                    alphaeonTransactionId: paymentData.transactionId,
+                    status: 'completed',
+                    paymentMethod: 'alphaeon_finance'
+                  });
                 }}
               />
             )}
