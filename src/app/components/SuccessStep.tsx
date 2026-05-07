@@ -79,7 +79,7 @@ export function SuccessStep({ paymentData, updatePaymentData, onComplete, onSign
       console.log("⏱⏱⏱ SIGNATURE POLLING STARTED ⏱⏱⏱");
       console.log("Transaction ID:", paymentData.transactionId);
       console.log("Callback provided:", !!onSignatureConfirmed);
-      toast.info("Waiting for signature confirmation...");
+      // toast.info removed - causes console.info crash
 
       const txnId: string | number = paymentData.transactionId;
 
@@ -106,7 +106,7 @@ export function SuccessStep({ paymentData, updatePaymentData, onComplete, onSign
             if (onSignatureConfirmed) {
               console.log("\n📤📤📤 CALLING ADVITAL API CALLBACK NOW 📤📤📤");
               console.log("Callback type:", typeof onSignatureConfirmed);
-              toast.info("Updating invoice status...");
+              // toast.info removed - causes console.info crash
               try {
                 await onSignatureConfirmed();
                 console.log("\n✅✅✅ ADVITAL API CALL COMPLETED SUCCESSFULLY ✅✅✅");
