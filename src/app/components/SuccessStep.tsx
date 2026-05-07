@@ -224,24 +224,19 @@ export function SuccessStep({ paymentData, updatePaymentData, onComplete, onSign
 
               {/* Iframe Body */}
               <div className="flex-1 bg-slate-50 relative overflow-hidden">
-                <AlphaeonIframeHost
-                  overrideUrl={paymentData.signatureLink}
-                  partnerTrackingGuid={`ADV_SIGN_${paymentData.transactionId}`}
-                  onAnyAlphaeonEvent={(e) => {
-                    if (signingFlowLooksFailed(e)) {
-                      setCanCloseSignatureModal(true);
-                    }
-                  }}
-                  onReceiptSigned={(payload) => {
-                    console.log("📥 Receipt signed via iframe:", payload);
-                    updatePaymentData({
-                      transactionId: payload.transaction_id || paymentData.transactionId
-                    });
-                    setIsSigned(true);
-                    toast.success('Receipt signed successfully!');
-                    // The iframe should not be auto closed. The Patient should initiate the closing.
-                    // onComplete(); // Move to next step
-                  }}
+                {/* Debug: Confirm iframe container is rendering */}
+                <div className="absolute top-4 left-4 bg-red-500 text-white px-4 py-2 rounded-lg z-50 text-sm font-bold">
+                  IFRAME CONTAINER IS VISIBLE ✓
+                  <br />
+                  Transaction: {paymentData.transactionId}
+                </div>
+                
+                <iframe
+                  src={paymentData.signatureLink}
+                  className="w-full h-full border-0"
+                  title="Alphaeon Signature"
+                  allow="geolocation; microphone; camera"
+                  sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
                 />
               </div>
 
