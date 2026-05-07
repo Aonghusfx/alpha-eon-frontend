@@ -36,14 +36,12 @@ const PaymentCheckout = () => {
       advitalTransactionId
     });
 
-    // CRITICAL CHECK: Verify orderId format
+    // CRITICAL CHECK: Verify orderId is present (accepts both hash and INV- formats)
     if (orderId) {
       console.log('✅ orderId received:', orderId);
-      if (orderId.startsWith('INV-')) {
-        console.log('✅ orderId format is CORRECT (INV-...)');
-      } else {
-        console.warn('⚠️ orderId format is WRONG - should start with INV-');
-      }
+      console.log('✅ orderId format:', 
+        orderId.startsWith('INV-') ? 'Human-readable (INV-XXXX)' : 'Hash ID'
+      );
     } else {
       console.error('❌ orderId is MISSING from URL parameters!');
     }
