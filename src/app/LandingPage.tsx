@@ -24,6 +24,30 @@ const PaymentCheckout = () => {
     const procedureName = params.get('procedureName');
     const orderId = params.get('orderId');
 
+    // DEBUG: Log all received parameters
+    console.log('🔍 URL Parameters Received:', {
+      amount,
+      locationId,
+      contactId,
+      orderId,
+      procedureName,
+      publishableKey,
+      advitalUpfrontAmount,
+      advitalTransactionId
+    });
+
+    // CRITICAL CHECK: Verify orderId format
+    if (orderId) {
+      console.log('✅ orderId received:', orderId);
+      if (orderId.startsWith('INV-')) {
+        console.log('✅ orderId format is CORRECT (INV-...)');
+      } else {
+        console.warn('⚠️ orderId format is WRONG - should start with INV-');
+      }
+    } else {
+      console.error('❌ orderId is MISSING from URL parameters!');
+    }
+
     return {
       amount: amount ? parseFloat(amount) : undefined,
       locationId: locationId || undefined,

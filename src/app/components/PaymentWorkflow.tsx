@@ -444,36 +444,66 @@ export function PaymentWorkflow({
 
       console.log('📤 Notifying Advital about payment completion:', paymentDetails);
 
+      // DEBUG: Log exact values being used
+      console.log('🔍 DEBUG - Invoice Update Details:');
+      console.log('  📋 Invoice ID (orderId):', paymentDetails.invoiceId);
+      console.log('  📍 Location ID:', paymentDetails.locationId);
+      console.log('  💰 Total Amount:', paymentDetails.totalAmount);
+      console.log('  💵 Financed Amount:', paymentDetails.financedAmount);
+      console.log('  🔑 Alphaeon Transaction ID:', paymentDetails.alphaeonTransactionId);
+
+      const apiUrl = `${advitalPortalBaseUrl}/api/invoices/${paymentDetails.invoiceId}/mark-paid`;
+      const requestBody = {
+        locationId: paymentDetails.locationId, // REQUIRED per API docs
+        transactionId: paymentDetails.transactionId,
+        totalAmount: paymentDetails.totalAmount,
+        upfrontPayment: {
+          amount: paymentDetails.upfrontAmount,
+          chargeId: paymentDetails.upfrontChargeId,
+          method: 'card'
+        },
+        financingDetails: {
+          amount: paymentDetails.financedAmount,
+          provider: 'alphaeon',
+          transactionId: paymentDetails.alphaeonTransactionId
+        },
+        status: paymentDetails.status,
+        paymentMethod: paymentDetails.paymentMethod,
+        paidAt: new Date().toISOString()
+      };
+
+      console.log('🌐 API Call Details:');
+      console.log('  URL:', apiUrl);
+      console.log('  Method: POST');
+      console.log('  Body:', JSON.stringify(requestBody, null, 2));
+
       // Call Advital API to update invoice status per ALPHAEON-API-DOCS.md
-      const response = await fetch(`${advitalPortalBaseUrl}/api/invoices/${paymentDetails.invoiceId}/mark-paid`, {
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          locationId: paymentDetails.locationId, // REQUIRED per API docs
-          transactionId: paymentDetails.transactionId,
-          totalAmount: paymentDetails.totalAmount,
-          upfrontPayment: {
-            amount: paymentDetails.upfrontAmount,
-            chargeId: paymentDetails.upfrontChargeId,
-            method: 'card'
-          },
-          financingDetails: {
-            amount: paymentDetails.financedAmount,
-            provider: 'alphaeon',
-            transactionId: paymentDetails.alphaeonTransactionId
-          },
-          status: paymentDetails.status,
-          paymentMethod: paymentDetails.paymentMethod,
-          paidAt: new Date().toISOString()
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Failed to notify Advital:', response.statusText, errorText);
-        toast.error('Payment successful but failed to update invoice status. Please contact support.');
+        console.error('❌ Failed to notify Advital:');
+        console.error('  Status:', response.status, response.statusText);
+        console.error('  Response:', errorText);
+        console.error('  URL was:', apiUrl);
+        console.error('  Body was:', JSON.stringify(requestBody, null, 2));
+        
+        // Show specific error based on status code
+        if (response.status === 400) {
+          toast.error('API Error 400: Missing locationId or invalid data. Check console for details.');
+        } else if (response.status === 403) {
+          toast.error('API Error 403: Wrong invoice ID used. Check console for details.');
+        } else if (response.status === 404) {
+          toast.error('API Error 404: Endpoint not found. Check console for details.');
+        } else {
+          toast.error('Payment successful but failed to update invoice status. Please contact support.');
+        }
       } else {
         console.log('✅ Successfully notified Advital about payment completion');
         const result = await response.json();
