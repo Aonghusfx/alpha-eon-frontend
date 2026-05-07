@@ -386,7 +386,8 @@ export function PaymentWorkflow({
             });
           } else {
             console.error('handleFinalSubmitRef.current is not available');
-            toast.info('Please click "Submit Sale" to continue to financing.');
+            console.log('Please click "Submit Sale" to continue to financing.');
+            // toast.info removed - causes crash
           }
         }, 1500);
       }
@@ -496,7 +497,7 @@ export function PaymentWorkflow({
       console.log('  Headers: { "Content-Type": "application/json" }');
       console.log('  Body:', JSON.stringify(requestBody, null, 2));
 
-      toast.info('Calling Advital API...');
+      // toast.info removed - causes crash
 
       // Call Advital API to update invoice status per ALPHAEON-API-DOCS.md
       console.log('⏳ Sending fetch request now...');
