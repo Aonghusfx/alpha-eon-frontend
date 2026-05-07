@@ -39,7 +39,7 @@ const PaymentCheckout = () => {
     // CRITICAL CHECK: Verify orderId is present (accepts both hash and INV- formats)
     if (orderId) {
       console.log('✅ orderId received:', orderId);
-      console.log('✅ orderId format:', 
+      console.log('✅ orderId format:',
         orderId.startsWith('INV-') ? 'Human-readable (INV-XXXX)' : 'Hash ID'
       );
     } else {

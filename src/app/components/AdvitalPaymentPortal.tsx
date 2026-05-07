@@ -87,7 +87,7 @@ export function AdvitalPaymentPortal() {
 
       const message = event.data as AdvitalMessage;
       if (!message || typeof message !== 'object' || !('type' in message)) return;
-      
+
       // Only log messages that are actually for us
       console.log('📬 Advital Message:', {
         type: message.type,

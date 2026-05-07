@@ -347,7 +347,7 @@ export function PaymentWorkflow({
 
       const message = event.data;
       if (!message || typeof message !== 'object' || !message.type) return;
-      
+
       // Only log messages that are actually for us
       console.log('📬 Advital Workflow Message:', {
         type: message.type,
@@ -429,7 +429,7 @@ export function PaymentWorkflow({
     console.log("\n\n🚀🚀🚀 notifyAdvitalPaymentSuccess FUNCTION CALLED 🚀🚀🚀");
     console.log("Timestamp:", new Date().toISOString());
     console.log("Payment Details Received:", JSON.stringify(paymentDetails, null, 2));
-    
+
     try {
       if (!paymentDetails.invoiceId) {
         console.error('❌❌❌ VALIDATION FAILED: No orderId/invoiceId provided');
@@ -480,7 +480,7 @@ export function PaymentWorkflow({
       console.log('  Method: POST');
       console.log('  Headers: { "Content-Type": "application/json" }');
       console.log('  Body:', JSON.stringify(requestBody, null, 2));
-      
+
       toast.info('Calling Advital API...');
 
       // Call Advital API to update invoice status per ALPHAEON-API-DOCS.md
@@ -494,7 +494,7 @@ export function PaymentWorkflow({
       });
 
       console.log('📨 Response received! Status:', response.status, response.statusText);
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error('\n❌❌❌ ADVITAL API ERROR ❌❌❌');
@@ -515,7 +515,7 @@ export function PaymentWorkflow({
         }
         throw new Error(`API Error ${response.status}: ${errorText}`);
       }
-      
+
       const result = await response.json();
       console.log('\n✅✅✅ ADVITAL API SUCCESS ✅✅✅');
       console.log('Response data:', result);
@@ -1266,7 +1266,7 @@ export function PaymentWorkflow({
                   console.log("  - totalAmount:", orderAmount);
                   console.log("  - upfrontAmount:", paymentData.upfrontPayment);
                   console.log("  - financedAmount:", orderAmount - (paymentData.upfrontPayment || 0));
-                  
+
                   await notifyAdvitalPaymentSuccess({
                     invoiceId: externalParams?.orderId,
                     locationId: advitalLocationId,
@@ -1279,7 +1279,7 @@ export function PaymentWorkflow({
                     status: 'completed',
                     paymentMethod: 'alphaeon_finance'
                   });
-                  
+
                   console.log("✅ notifyAdvitalPaymentSuccess call completed!");
                 }}
               />

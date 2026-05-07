@@ -70,7 +70,7 @@ export function SuccessStep({ paymentData, updatePaymentData, onComplete, onSign
       console.log("Transaction ID:", paymentData.transactionId);
       console.log("Callback provided:", !!onSignatureConfirmed);
       toast.info("Waiting for signature confirmation...");
-      
+
       const txnId: string | number = paymentData.transactionId;
 
       pollInterval = setInterval(async () => {
@@ -85,7 +85,7 @@ export function SuccessStep({ paymentData, updatePaymentData, onComplete, onSign
             console.log("\n✨✨✨ SIGNATURE CONFIRMED! ✨✨✨");
             console.log("Status:", details.status);
             clearInterval(pollInterval);
-            
+
             updatePaymentData({
               transactionId: details.transaction_id || paymentData.transactionId
             });
