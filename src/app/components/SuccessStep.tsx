@@ -22,6 +22,14 @@ export function SuccessStep({ paymentData, updatePaymentData, onComplete, onSign
   const [isSigned, setIsSigned] = useState(false);
   const [canCloseSignatureModal, setCanCloseSignatureModal] = useState(false);
 
+  // DEBUG: Log when component mounts
+  React.useEffect(() => {
+    console.log("🎯 SuccessStep mounted");
+    console.log("  - paymentData.isSignaturePending:", paymentData.isSignaturePending);
+    console.log("  - paymentData.transactionId:", paymentData.transactionId);
+    console.log("  - onSignatureConfirmed callback:", onSignatureConfirmed ? "✅ PROVIDED" : "❌ MISSING");
+  }, []);
+
   const signingFlowLooksFailed = (e: AlphaeonPortalEvent): boolean => {
     const et = (e.eventType || '').toLowerCase();
     if (
@@ -54,38 +62,66 @@ export function SuccessStep({ paymentData, updatePaymentData, onComplete, onSign
   // POLLING FALLBACK: If signature is pending, check transaction status periodically
   React.useEffect(() => {
     let pollInterval: any;
+    let pollCount = 0;
+    const maxPolls = 60; // 5 minutes max (60 * 5 seconds)
 
     if (paymentData.isSignaturePending && paymentData.transactionId) {
-      console.log("⏱ Starting polling for signature status...");
-      const txnId: string | number = paymentData.transactionId; // Guaranteed by if condition
+      console.log("⏱⏱⏱ SIGNATURE POLLING STARTED ⏱⏱⏱");
+      console.log("Transaction ID:", paymentData.transactionId);
+      console.log("Callback provided:", !!onSignatureConfirmed);
+      toast.info("Waiting for signature confirmation...");
+      
+      const txnId: string | number = paymentData.transactionId;
 
       pollInterval = setInterval(async () => {
+        pollCount++;
         try {
-          console.log("🔄 Background polling for signature: ", txnId);
+          console.log(`\n🔄🔄🔄 POLL #${pollCount} - Checking signature status for: ${txnId}`);
           const details = await alphaeonApi.getTransactionV2(String(txnId));
+          console.log(`📊 STATUS: ${details.status}`);
+          console.log(`📋 Full details:`, JSON.stringify(details, null, 2));
 
           if (details.status === 'signed' || details.status === 'completed' || details.status === 'funded') {
-            console.log("✨ Background poll CONFIRMED signature!", details.status);
+            console.log("\n✨✨✨ SIGNATURE CONFIRMED! ✨✨✨");
+            console.log("Status:", details.status);
+            clearInterval(pollInterval);
+            
             updatePaymentData({
               transactionId: details.transaction_id || paymentData.transactionId
             });
             setIsSigned(true);
-            toast.success("Signature confirmed!");
+            toast.success("✅ Signature confirmed! Updating invoice...");
 
             // Notify Advital after signature confirmation
             if (onSignatureConfirmed) {
-              console.log("📤 Calling Advital API after signature confirmation...");
+              console.log("\n📤📤📤 CALLING ADVITAL API CALLBACK NOW 📤📤📤");
+              console.log("Callback type:", typeof onSignatureConfirmed);
+              toast.info("Updating invoice status...");
               try {
                 await onSignatureConfirmed();
+                console.log("\n✅✅✅ ADVITAL API CALL COMPLETED SUCCESSFULLY ✅✅✅");
+                toast.success("Invoice updated successfully!");
               } catch (error) {
-                console.error("Error notifying Advital:", error);
+                console.error("\n❌❌❌ ERROR CALLING ADVITAL API ❌❌❌", error);
+                toast.error("Failed to update invoice: " + (error instanceof Error ? error.message : String(error)));
               }
+            } else {
+              console.error("\n❌❌❌ CALLBACK NOT PROVIDED ❌❌❌");
+              toast.error("Callback missing - cannot update invoice!");
             }
-
+          } else if (pollCount >= maxPolls) {
+            console.warn("⚠️ Maximum polling attempts reached, stopping...");
+            toast.warning("Signature taking longer than expected");
             clearInterval(pollInterval);
+          } else {
+            console.log(`  - Status still: ${details.status || 'unknown'}, will retry (${pollCount}/${maxPolls})`);
           }
-        } catch (e) {
-          console.warn("Signature polling error (silent):", e);
+        } catch (error) {
+          console.error(`❌ Error polling signature status (poll #${pollCount}):`, error);
+          if (pollCount >= maxPolls) {
+            clearInterval(pollInterval);
+            toast.error("Failed to confirm signature");
+          }
         }
       }, 5000); // Check every 5 seconds
     }

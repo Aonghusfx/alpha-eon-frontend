@@ -430,19 +430,26 @@ export function PaymentWorkflow({
     status: string;
     paymentMethod: string;
   }) => {
+    console.log("\n\n🚀🚀🚀 notifyAdvitalPaymentSuccess FUNCTION CALLED 🚀🚀🚀");
+    console.log("Timestamp:", new Date().toISOString());
+    console.log("Payment Details Received:", JSON.stringify(paymentDetails, null, 2));
+    
     try {
       if (!paymentDetails.invoiceId) {
-        console.warn('⚠️ No orderId/invoiceId provided, skipping Advital notification');
+        console.error('❌❌❌ VALIDATION FAILED: No orderId/invoiceId provided');
+        console.error('Payment details:', paymentDetails);
+        toast.error('Cannot update invoice: Invoice ID missing!');
         return;
       }
 
       if (!paymentDetails.locationId) {
-        console.warn('⚠️ No locationId provided, skipping Advital notification');
+        console.error('❌❌❌ VALIDATION FAILED: No locationId provided');
+        console.error('Payment details:', paymentDetails);
         toast.error('Cannot update invoice: location ID missing');
         return;
       }
 
-      console.log('📤 Notifying Advital about payment completion:', paymentDetails);
+      console.log('✅ Validation passed, preparing API call...');
 
       // DEBUG: Log exact values being used
       console.log('🔍 DEBUG - Invoice Update Details:');
@@ -472,12 +479,16 @@ export function PaymentWorkflow({
         paidAt: new Date().toISOString()
       };
 
-      console.log('🌐 API Call Details:');
+      console.log('\n🌐🌐🌐 MAKING API CALL TO ADVITAL 🌐🌐🌐');
       console.log('  URL:', apiUrl);
       console.log('  Method: POST');
+      console.log('  Headers: { "Content-Type": "application/json" }');
       console.log('  Body:', JSON.stringify(requestBody, null, 2));
+      
+      toast.info('Calling Advital API...');
 
       // Call Advital API to update invoice status per ALPHAEON-API-DOCS.md
+      console.log('⏳ Sending fetch request now...');
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
@@ -486,9 +497,11 @@ export function PaymentWorkflow({
         body: JSON.stringify(requestBody)
       });
 
+      console.log('📨 Response received! Status:', response.status, response.statusText);
+      
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Failed to notify Advital:');
+        console.error('\n❌❌❌ ADVITAL API ERROR ❌❌❌');
         console.error('  Status:', response.status, response.statusText);
         console.error('  Response:', errorText);
         console.error('  URL was:', apiUrl);
@@ -504,16 +517,22 @@ export function PaymentWorkflow({
         } else {
           toast.error('Payment successful but failed to update invoice status. Please contact support.');
         }
-      } else {
-        console.log('✅ Successfully notified Advital about payment completion');
-        const result = await response.json();
-        console.log('📥 Advital response:', result);
-        toast.success('Invoice status updated successfully!');
+        throw new Error(`API Error ${response.status}: ${errorText}`);
       }
+      
+      const result = await response.json();
+      console.log('\n✅✅✅ ADVITAL API SUCCESS ✅✅✅');
+      console.log('Response data:', result);
+      toast.success('✅ Invoice marked as paid in Advital!');
     } catch (error) {
-      console.error('❌ Error notifying Advital:', error);
+      console.error('\n❌❌❌ EXCEPTION IN notifyAdvitalPaymentSuccess ❌❌❌');
+      console.error('Error type:', error instanceof Error ? error.constructor.name : typeof error);
+      console.error('Error message:', error instanceof Error ? error.message : String(error));
+      console.error('Full error:', error);
+      console.error('Stack trace:', error instanceof Error ? error.stack : 'N/A');
+      toast.error('Error updating invoice!');
       // Don't throw error - payment was successful, just notification failed
-      toast.warning('Payment successful but invoice update pending. Please contact support if status doesn\'t update.');
+      throw error;
     }
   };
 
@@ -1241,7 +1260,17 @@ export function PaymentWorkflow({
                   setMaxStepReached(m => Math.max(m, 5));
                 }}
                 onSignatureConfirmed={async () => {
-                  // Call Advital API after signature confirmation
+                  console.log("\n\n🎯🎯🎯 SIGNATURE CONFIRMED CALLBACK TRIGGERED 🎯🎯🎯");
+                  console.log("Timestamp:", new Date().toISOString());
+                  console.log("About to call notifyAdvitalPaymentSuccess...");
+                  console.log("Parameters to be passed:");
+                  console.log("  - invoiceId (orderId):", externalParams?.orderId);
+                  console.log("  - locationId:", advitalLocationId);
+                  console.log("  - transactionId:", paymentData.transactionId);
+                  console.log("  - totalAmount:", orderAmount);
+                  console.log("  - upfrontAmount:", paymentData.upfrontPayment);
+                  console.log("  - financedAmount:", orderAmount - (paymentData.upfrontPayment || 0));
+                  
                   await notifyAdvitalPaymentSuccess({
                     invoiceId: externalParams?.orderId,
                     locationId: advitalLocationId,
@@ -1254,6 +1283,8 @@ export function PaymentWorkflow({
                     status: 'completed',
                     paymentMethod: 'alphaeon_finance'
                   });
+                  
+                  console.log("✅ notifyAdvitalPaymentSuccess call completed!");
                 }}
               />
             )}
