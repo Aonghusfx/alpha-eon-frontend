@@ -29,7 +29,7 @@ export function SuccessStep({ paymentData, updatePaymentData, onComplete, onSign
     console.log("  - paymentData.transactionId:", paymentData.transactionId);
     console.log("  - paymentData.signatureLink:", paymentData.signatureLink);
     console.log("  - onSignatureConfirmed callback:", onSignatureConfirmed ? "✅ PROVIDED" : "❌ MISSING");
-    
+
     // Extra debug for white screen issue
     if (paymentData.isSignaturePending && !paymentData.signatureLink) {
       console.error("❌ ERROR: Signature pending but NO signature link!");
@@ -233,7 +233,7 @@ export function SuccessStep({ paymentData, updatePaymentData, onComplete, onSign
                     <p className="text-xs text-gray-500 mt-4">Transaction ID: {paymentData.transactionId}</p>
                   </div>
                 </div>
-                
+
                 <AlphaeonIframeHost
                   overrideUrl={paymentData.signatureLink}
                   partnerTrackingGuid={`ADV_SIGN_${paymentData.transactionId}`}
