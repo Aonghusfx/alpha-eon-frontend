@@ -82,15 +82,17 @@ export function AdvitalPaymentPortal() {
 
   useEffect(() => {
     const handler = async (event: MessageEvent) => {
-      console.log('📬 Message received in AdvitalPaymentPortal:', {
-        origin: event.origin,
-        allowedOrigin: allowedOrigin,
-        data: event.data
-      });
+      // Silently ignore messages from other origins (prevents console spam)
       if (event.origin !== allowedOrigin) return;
 
       const message = event.data as AdvitalMessage;
       if (!message || typeof message !== 'object' || !('type' in message)) return;
+      
+      // Only log messages that are actually for us
+      console.log('📬 Advital Message:', {
+        type: message.type,
+        origin: event.origin
+      });
 
       if (message.type === 'advital_payment_success') {
         console.log('✅ Advital Payment Success:', message.data);

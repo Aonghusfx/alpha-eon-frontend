@@ -342,21 +342,17 @@ export function PaymentWorkflow({
 
   useEffect(() => {
     const handleAdvitalMessage = (event: MessageEvent) => {
-      console.log('📬 Message received in PaymentWorkflow:', {
-        origin: event.origin,
-        advitalAllowedOrigin: advitalAllowedOrigin,
-        data: event.data
-      });
-      // Log all messages from the allowed origin for easier debugging
-      if (event.origin === advitalAllowedOrigin) {
-
-        console.log('📨 Advital Iframe Message:', event.data);
-      } else {
-        return;
-      }
+      // Silently ignore messages from other origins (prevents console spam)
+      if (event.origin !== advitalAllowedOrigin) return;
 
       const message = event.data;
       if (!message || typeof message !== 'object' || !message.type) return;
+      
+      // Only log messages that are actually for us
+      console.log('📬 Advital Workflow Message:', {
+        type: message.type,
+        origin: event.origin
+      });
 
       const currentOrderAmount = orderAmountRef.current;
       const currentPaymentData = paymentDataRef.current;

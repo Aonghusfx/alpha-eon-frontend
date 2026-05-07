@@ -83,28 +83,28 @@ export function AlphaeonIframeHost({
     const handler = (event: MessageEvent) => {
       let data = event.data;
 
-      // === CATCH-ALL DEBUG: Log EVERY single postMessage regardless of type ===
-      console.log("📨 [RAW postMessage]", {
-        type: typeof data,
-        origin: event.origin,
-        raw: typeof data === "string" ? data.substring(0, 500) : data,
-      });
-
+      // Silently ignore messages that aren't for us (prevents console spam from other iframes)
       // If data is a string, try to JSON.parse it (some iframes send stringified JSON)
       if (typeof data === "string") {
         try {
           data = JSON.parse(data);
-          console.log("📨 [Parsed string postMessage]", data);
         } catch {
-          // Not JSON, skip
+          // Not JSON, silently skip
           return;
         }
       }
 
       if (!data || typeof data !== "object") return;
 
-      // Check for Alphaeon source
+      // Check for Alphaeon source - silently ignore if not from Alphaeon
       if (data.source !== "alphaeon-credit-portal") return;
+
+      // Only log Alphaeon messages (not spam from other sources)
+      console.log("📨 Alphaeon Message:", {
+        eventType: data.eventType,
+        origin: event.origin,
+        payload: data.payload
+      });
 
       console.log("✅ Alphaeon Iframe Event:", data.eventType, data.payload);
 
