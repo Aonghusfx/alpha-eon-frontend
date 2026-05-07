@@ -71,7 +71,7 @@ export function SuccessStep({ paymentData, updatePaymentData, onComplete, onSign
             });
             setIsSigned(true);
             toast.success("Signature confirmed!");
-            
+
             // Notify Advital after signature confirmation
             if (onSignatureConfirmed) {
               console.log("📤 Calling Advital API after signature confirmation...");
@@ -81,7 +81,7 @@ export function SuccessStep({ paymentData, updatePaymentData, onComplete, onSign
                 console.error("Error notifying Advital:", error);
               }
             }
-            
+
             clearInterval(pollInterval);
           }
         } catch (e) {
