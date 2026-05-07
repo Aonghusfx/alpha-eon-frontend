@@ -493,7 +493,7 @@ export function PaymentWorkflow({
         console.error('  Response:', errorText);
         console.error('  URL was:', apiUrl);
         console.error('  Body was:', JSON.stringify(requestBody, null, 2));
-        
+
         // Show specific error based on status code
         if (response.status === 400) {
           toast.error('API Error 400: Missing locationId or invalid data. Check console for details.');
