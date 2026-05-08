@@ -375,7 +375,7 @@ export function PaymentWorkflow({
 
         setShowAdvitalUpfrontIframe(false);
         toast.success('✅ Upfront payment received! Proceeding to financing...', { duration: 3000 });
-        
+
         // Auto-submit after a brief delay to allow state to update and user to see success message
         setTimeout(() => {
           console.log('🚀 Auto-submitting to continue to Alphaeon financing...');
@@ -558,7 +558,7 @@ export function PaymentWorkflow({
       accountNumber: paymentData.accountNumber,
       selectedPlan: paymentData.selectedPlanObject?.name
     });
-    
+
     setIsSearchingAccount(true);
     setTransactionError(null);
     clearError();
@@ -655,7 +655,7 @@ export function PaymentWorkflow({
         if (!paymentData.accountNumber) {
           throw new Error('Account number is missing. Please go back and look up your account.');
         }
-        
+
         if (!paymentData.selectedPlanObject) {
           throw new Error('Please select a financing plan before continuing.');
         }
@@ -1574,7 +1574,7 @@ export function PaymentWorkflow({
                 </div>
               ) : (
                 <iframe
-                  src={`${advitalPortalBaseUrl}/finance-payment-portal?amount=${paymentData.upfrontPayment || 0}&locationId=${advitalLocationId}&contactId=${externalParams?.contactId || 'contact_demo'}&publishableKey=${advitalPublishableKey}&orderId=${advitalTransactionId}`}
+                  src={`${advitalPortalBaseUrl}/finance-payment-portal?amount=${paymentData.upfrontPayment || 0}&upfrontAmount=${paymentData.upfrontPayment || 0}&locationId=${advitalLocationId}&contactId=${externalParams?.contactId || 'contact_demo'}&publishableKey=${advitalPublishableKey}&orderId=${advitalTransactionId}`}
                   className="w-full h-full border-0"
                   title="Advital Upfront Payment"
                 />

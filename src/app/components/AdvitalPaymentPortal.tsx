@@ -22,6 +22,7 @@ type AdvitalMessage =
 
 type PortalParams = {
   amount: number;
+  upfrontAmount?: number;
   locationId: string;
   contactId: string;
   publishableKey?: string;
@@ -43,6 +44,7 @@ const portalBaseUrl = import.meta.env.VITE_ADVITAL_PORTAL_BASE_URL || DEFAULT_OR
 function getParams(): PortalParams | null {
   const query = new URLSearchParams(window.location.search);
   const amount = Number(query.get('amount') || 0);
+  const upfrontAmount = Number(query.get('upfrontAmount') || 0);
 
   // Get locationId from URL query params - do NOT use environment variable
   const locationId = query.get('locationId') || '';
@@ -53,7 +55,7 @@ function getParams(): PortalParams | null {
     return null;
   }
 
-  return { amount, locationId, contactId, publishableKey };
+  return { amount, upfrontAmount: upfrontAmount > 0 ? upfrontAmount : undefined, locationId, contactId, publishableKey };
 }
 
 
@@ -72,6 +74,9 @@ export function AdvitalPaymentPortal() {
       locationId: params.locationId,
       contactId: params.contactId,
     });
+    if (params.upfrontAmount !== undefined) {
+      q.set('upfrontAmount', String(params.upfrontAmount));
+    }
     if (params.publishableKey) {
       q.set('publishableKey', params.publishableKey);
     }
