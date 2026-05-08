@@ -381,28 +381,25 @@ export function PaymentWorkflow({
 
         // DO NOT auto-submit - let user select plan first, then manually click Submit Sale
       }
-    }
 
-    if (message.type === 'advital_payment_error') {
-      console.log("message.type", message.type, "hekfaemf;aefl;eamfl;emal;fma;lfm;l", message.error)
-      console.error('❌ Advital Payment Error:', message.error);
-      const errorMsg = message.error || 'Payment failed. Please try again.';
+      if (message.type === 'advital_payment_error') {
+        console.log("message.type", message.type, "hekfaemf;aefl;eamfl;emal;fma;lfm;l", message.error)
+        console.error('❌ Advital Payment Error:', message.error);
+        const errorMsg = message.error || 'Payment failed. Please try again.';
 
-      toast.error(errorMsg);
+        toast.error(errorMsg);
+      }
 
-    }
+      if (message.type === 'advital_payment_skipped') {
+        console.log('ℹ️ Advital Payment Skipped:', message.data);
+        updatePaymentData({
+          advitalUpfrontPaid: true,
+          upfrontPayment: 0,
+        });
 
-    if (message.type === 'advital_payment_skipped') {
-      console.log('ℹ️ Advital Payment Skipped:', message.data);
-      updatePaymentData({
-
-        advitalUpfrontPaid: true,
-        upfrontPayment: 0,
-      });
-
-      setShowAdvitalUpfrontIframe(false);
-    }
-  };
+        setShowAdvitalUpfrontIframe(false);
+      }
+    };
 
   window.addEventListener('message', handleAdvitalMessage);
   return () => window.removeEventListener('message', handleAdvitalMessage);
