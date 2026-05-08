@@ -417,7 +417,7 @@ useEffect(() => {
   toast.dismiss(toastId);
 }, [paymentData.upfrontPayment, paymentData.advitalUpfrontPaid, currentStep]);
 
-// Notify Advital about payment completion
+// Notify Advital about payment completion - Using new record-payment-direct endpoint
 const notifyAdvitalPaymentSuccess = async (paymentDetails: {
   invoiceId?: string;
   locationId?: string;
@@ -456,38 +456,29 @@ const notifyAdvitalPaymentSuccess = async (paymentDetails: {
     console.log('  📋 Invoice ID (orderId):', paymentDetails.invoiceId);
     console.log('  📍 Location ID:', paymentDetails.locationId);
     console.log('  💰 Total Amount:', paymentDetails.totalAmount);
+    console.log('  💵 Upfront Amount:', paymentDetails.upfrontAmount);
     console.log('  💵 Financed Amount:', paymentDetails.financedAmount);
     console.log('  🔑 Alphaeon Transaction ID:', paymentDetails.alphaeonTransactionId);
 
-    const apiUrl = `${advitalPortalBaseUrl}/api/invoices/${paymentDetails.invoiceId}/mark-paid`;
+    // Use NEW endpoint provided by Advital: record-payment-direct
+    const apiUrl = `${advitalPortalBaseUrl}/api/invoices/${paymentDetails.invoiceId}/record-payment-direct`;
+    
+    // New simplified request format per Advital spec
     const requestBody = {
-      locationId: paymentDetails.locationId, // REQUIRED per API docs
-      transactionId: paymentDetails.transactionId,
-      totalAmount: paymentDetails.totalAmount,
-      upfrontPayment: {
-        amount: paymentDetails.upfrontAmount,
-        chargeId: paymentDetails.upfrontChargeId,
-        method: 'card'
-      },
-      financingDetails: {
-        amount: paymentDetails.financedAmount,
-        provider: 'alphaeon',
-        transactionId: paymentDetails.alphaeonTransactionId
-      },
-      status: paymentDetails.status,
-      paymentMethod: paymentDetails.paymentMethod,
-      paidAt: new Date().toISOString()
+      locationId: paymentDetails.locationId,
+      amount: paymentDetails.totalAmount,
+      mode: 'cash', // Always 'cash' for financing per Advital spec
+      notes: `Alphaeon financing completed. Upfront: $${paymentDetails.upfrontAmount}, Financing: $${paymentDetails.financedAmount}, TxID: ${paymentDetails.alphaeonTransactionId}`,
+      transactionId: String(paymentDetails.alphaeonTransactionId)
     };
 
-    console.log('\n🌐🌐🌐 MAKING API CALL TO ADVITAL 🌐🌐🌐');
+    console.log('\n🌐🌐🌐 MAKING API CALL TO ADVITAL (NEW ENDPOINT) 🌐🌐🌐');
     console.log('  URL:', apiUrl);
     console.log('  Method: POST');
     console.log('  Headers: { "Content-Type": "application/json" }');
     console.log('  Body:', JSON.stringify(requestBody, null, 2));
 
-    // toast.info removed - causes crash
-
-    // Call Advital API to update invoice status per ALPHAEON-API-DOCS.md
+    // Call Advital API using new record-payment-direct endpoint
     console.log('⏳ Sending fetch request now...');
     const response = await fetch(apiUrl, {
       method: 'POST',
@@ -507,17 +498,12 @@ const notifyAdvitalPaymentSuccess = async (paymentDetails: {
       console.error('  URL was:', apiUrl);
       console.error('  Body was:', JSON.stringify(requestBody, null, 2));
 
-      // Show specific error based on status code
-      if (response.status === 400) {
-        toast.error('API Error 400: Missing locationId or invalid data. Check console for details.');
-      } else if (response.status === 403) {
-        toast.error('API Error 403: Wrong invoice ID used. Check console for details.');
-      } else if (response.status === 404) {
-        toast.error('API Error 404: Endpoint not found. Check console for details.');
-      } else {
-        toast.error('Payment successful but failed to update invoice status. Please contact support.');
-      }
-      throw new Error(`API Error ${response.status}: ${errorText}`);
+      // Log but don't block user flow - payment is already complete in Alphaeon
+      console.warn('⚠️ Payment completed in Alphaeon but failed to record in Advital. Support can manually record it.');
+      toast.error('Payment successful but invoice update failed. Please contact support.');
+      
+      // Don't throw - payment is already complete
+      return;
     }
 
     const result = await response.json();
@@ -530,9 +516,10 @@ const notifyAdvitalPaymentSuccess = async (paymentDetails: {
     console.error('Error message:', error instanceof Error ? error.message : String(error));
     console.error('Full error:', error);
     console.error('Stack trace:', error instanceof Error ? error.stack : 'N/A');
-    toast.error('Error updating invoice!');
-    // Don't throw error - payment was successful, just notification failed
-    throw error;
+    
+    // Log error but don't throw or block user - payment is already complete
+    console.warn('⚠️ Failed to notify Advital but payment was successful in Alphaeon');
+    toast.error('Payment successful! Invoice update failed - support will handle manually.');
   }
 };
 
