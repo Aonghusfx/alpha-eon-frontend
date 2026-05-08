@@ -475,7 +475,7 @@ const notifyAdvitalPaymentSuccess = async (paymentDetails: {
     console.log('\n🌐🌐🌐 MAKING API CALL TO ADVITAL (NEW ENDPOINT) 🌐🌐🌐');
     console.log('  URL:', apiUrl);
     console.log('  Method: POST');
-    console.log('  Headers: { "Content-Type": "application/json" }');
+    console.log('  Headers: { "Content-Type": "application/json", "Authorization": "Bearer ***" }');
     console.log('  Body:', JSON.stringify(requestBody, null, 2));
 
     // Call Advital API using new record-payment-direct endpoint
@@ -484,6 +484,7 @@ const notifyAdvitalPaymentSuccess = async (paymentDetails: {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${advitalPublishableKey}`,
       },
       body: JSON.stringify(requestBody)
     });
