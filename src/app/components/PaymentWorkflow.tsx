@@ -94,7 +94,8 @@ export function PaymentWorkflow({
   const advitalAllowedOrigin = import.meta.env.VITE_ADVITAL_ALLOWED_ORIGIN || 'https://adv-dev.vercel.app';
   const advitalPortalBaseUrl = import.meta.env.VITE_ADVITAL_PORTAL_BASE_URL || 'https://adv-dev.vercel.app';
   const advitalPublishableKey = externalParams?.publishableKey || import.meta.env.VITE_ADVITAL_PUBLISHABLE_KEY || 'jYjfEW-aZG66e-w8a28d-Z6F5zB';
-  const isAdvitalUpfrontApplied = !!externalParams?.advitalTransactionId;
+  // Allow users to always modify upfront amount (don't lock field)
+  const isAdvitalUpfrontApplied = false;
   const safeInitialStep = Math.min(Math.max(initialStep, 1), steps.length);
   const [currentStep, setCurrentStep] = useState(safeInitialStep);
   const [maxStepReached, setMaxStepReached] = useState(safeInitialStep);
@@ -470,51 +471,34 @@ export function PaymentWorkflow({
       console.log('  💵 Financed Amount:', paymentDetails.financedAmount);
       console.log('  🔑 Alphaeon Transaction ID:', paymentDetails.alphaeonTransactionId);
 
-      // Use NEW /api/query endpoint per Advital's latest spec
-      const apiUrl = `${advitalPortalBaseUrl}/api/query`;
+      // Use NEW /api/invoices/{invoiceId}/mark-paid endpoint per Advital v2 spec
+      const apiUrl = `${advitalPortalBaseUrl}/api/invoices/${paymentDetails.invoiceId}/mark-paid`;
 
-      // Step 2 call (after financing): Pass FULL invoice amount with orderId
-      // Empty token + orderId = invoice-only update (skips NMI charge, just marks invoice paid)
+      // Step 2 call (after financing): Mark invoice as paid in GHL
       const requestBody = {
-        type: "charge_payment",
-        amount: paymentDetails.totalAmount, // FULL invoice amount (e.g., $278)
-        currency: "USD",
-        paymentMethod: {
-          type: "card",
-          token: "" // Empty string - skips charge, only updates invoice
-        },
         locationId: paymentDetails.locationId,
-        contactId: paymentDetails.contactId,
-        orderId: paymentDetails.invoiceId // GHL invoice ID (triggers automatic marking as paid)
+        amount: paymentDetails.totalAmount, // FULL invoice amount
+        transactionId: String(paymentDetails.alphaeonTransactionId), // Optional: Alphaeon transaction ID
+        notes: 'Alphaeon financing completed' // Optional
       };
 
-      console.log('\n🌐🌐🌐 MAKING API CALL TO ADVITAL (/api/query) 🌐🌐🌐');
+      console.log('\n🌐🌐🌐 MAKING API CALL TO ADVITAL (/api/invoices/{id}/mark-paid) 🌐🌐🌐');
       console.log('  URL:', apiUrl);
       console.log('  Method: POST');
-      console.log('  Headers: { "Content-Type": "application/json", "Authorization": "Bearer ***" }');
+      console.log('  Headers: { "Content-Type": "application/json" }');
       console.log('  Body:', JSON.stringify(requestBody, null, 2));
 
-      // Call Advital /api/query endpoint
+      // Call Advital /api/invoices/{invoiceId}/mark-paid endpoint
       console.log('⏳ Sending fetch request now...');
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${advitalPublishableKey}`,
         },
         body: JSON.stringify(requestBody)
       });
 
       console.log('📨 Response received! Status:', response.status, response.statusText);
-
-      // Handle 409 Conflict - Payment recording already in progress (this is SUCCESS)
-      if (response.status === 409) {
-        console.log('\n✅✅✅ 409 CONFLICT = PAYMENT RECORDING IN PROGRESS ✅✅✅');
-        console.log('This means payment is being processed by another request or process.');
-        console.log('Invoice will be marked as paid shortly - treating as success.');
-        toast.success('✅ Payment recorded! Invoice is being updated in GHL...');
-        return; // Exit early - this is a success case
-      }
 
       if (!response.ok) {
         const errorText = await response.text();
