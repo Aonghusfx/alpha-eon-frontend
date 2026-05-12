@@ -474,10 +474,11 @@ export function PaymentWorkflow({
       // Use NEW /api/query endpoint per Advital's latest spec
       const apiUrl = `${advitalPortalBaseUrl}/api/query`;
 
-      // New format: Step 2 call (after financing) with amount=0
+      // Step 2 call (after financing): Pass FULL invoice amount with orderId
+      // This automatically records payment using Advital's private integration token
       const requestBody = {
         type: "charge_payment",
-        amount: 0, // Zero - upfront was already charged in step 1
+        amount: paymentDetails.totalAmount, // FULL invoice amount (e.g., $278)
         currency: "USD",
         paymentMethod: {
           type: "card",
@@ -1576,7 +1577,7 @@ export function PaymentWorkflow({
                 </div>
               ) : (
                 <iframe
-                  src={`${advitalPortalBaseUrl}/finance-payment-portal?amount=${paymentData.upfrontPayment || 0}&upfrontAmount=${paymentData.upfrontPayment || 0}&locationId=${advitalLocationId}&contactId=${externalParams?.contactId || 'contact_demo'}&publishableKey=${advitalPublishableKey}&orderId=${externalParams?.orderId || ''}`}
+                  src={`${advitalPortalBaseUrl}/finance-payment-portal?amount=${paymentData.upfrontPayment || 0}&upfrontAmount=${paymentData.upfrontPayment || 0}&locationId=${advitalLocationId}&contactId=${externalParams?.contactId || 'contact_demo'}&publishableKey=${advitalPublishableKey}`}
                   className="w-full h-full border-0"
                   title="Advital Upfront Payment"
                 />
