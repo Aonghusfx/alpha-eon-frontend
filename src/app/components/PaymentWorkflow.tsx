@@ -1289,8 +1289,11 @@ export function PaymentWorkflow({
                 onSignatureConfirmed={async () => {
                   console.log("\n\n🎯🎯🎯 SIGNATURE CONFIRMED CALLBACK TRIGGERED 🎯🎯🎯");
                   console.log("Timestamp:", new Date().toISOString());
-                  console.log("About to call notifyAdvitalPaymentSuccess...");
-                  console.log("Parameters to be passed:");
+                  
+                  // ❌ TEMPORARILY DISABLED FOR TESTING - Testing if GHL auto-marks invoices as paid
+                  console.log("⚠️⚠️⚠️ mark-paid API call DISABLED for testing purposes");
+                  console.log("Testing if GoHighLevel automatically records financing payments");
+                  console.log("Parameters that WOULD be passed:");
                   console.log("  - invoiceId (orderId):", externalParams?.orderId);
                   console.log("  - locationId:", advitalLocationId);
                   console.log("  - contactId:", externalParams?.contactId);
@@ -1300,6 +1303,7 @@ export function PaymentWorkflow({
                   console.log("  - financedAmount:", orderAmount - (paymentData.upfrontPayment || 0));
                   console.log("  - paymentToken:", paymentData.advitalChargeId);
 
+                  /* COMMENTED OUT FOR TESTING - Re-enable after determining if GHL auto-records
                   await notifyAdvitalPaymentSuccess({
                     invoiceId: externalParams?.orderId,
                     locationId: advitalLocationId,
@@ -1314,8 +1318,9 @@ export function PaymentWorkflow({
                     status: 'completed',
                     paymentMethod: 'alphaeon_finance'
                   });
+                  */
 
-                  console.log("✅ notifyAdvitalPaymentSuccess call completed!");
+                  console.log("✅ Signature confirmation complete (API call skipped for testing)!");
                 }}
               />
             )}
