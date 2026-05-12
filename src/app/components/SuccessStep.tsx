@@ -74,6 +74,7 @@ export function SuccessStep({ paymentData, updatePaymentData, onComplete, onSign
     let pollInterval: any;
     let pollCount = 0;
     const maxPolls = 60; // 5 minutes max (60 * 5 seconds)
+    let callbackCalled = false; // Flag to prevent multiple calls
 
     if (paymentData.isSignaturePending && paymentData.transactionId) {
       console.log("⏱⏱⏱ SIGNATURE POLLING STARTED ⏱⏱⏱");
@@ -92,8 +93,17 @@ export function SuccessStep({ paymentData, updatePaymentData, onComplete, onSign
           console.log(`📋 Full details:`, JSON.stringify(details, null, 2));
 
           if (details.status === 'signed' || details.status === 'completed' || details.status === 'funded') {
+            // Check if callback already called to prevent duplicate API calls
+            if (callbackCalled) {
+              console.log("⏭️ Callback already called, skipping duplicate call");
+              return;
+            }
+
             console.log("\n✨✨✨ SIGNATURE CONFIRMED! ✨✨✨");
             console.log("Status:", details.status);
+            
+            // Set flag IMMEDIATELY before any async operations
+            callbackCalled = true;
             clearInterval(pollInterval);
 
             updatePaymentData({
