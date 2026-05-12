@@ -26,6 +26,7 @@ type PortalParams = {
   locationId: string;
   contactId: string;
   publishableKey?: string;
+  orderId?: string;
 };
 
 type PaymentResult = {
@@ -50,12 +51,13 @@ function getParams(): PortalParams | null {
   const locationId = query.get('locationId') || '';
   const contactId = query.get('contactId') || '';
   const publishableKey = import.meta.env.VITE_ADVITAL_PUBLISHABLE_KEY || '';
+  const orderId = query.get('orderId') || ''; // GHL invoice ID (24-char hex)
 
   if (!Number.isFinite(amount) || amount <= 0 || !locationId || !contactId) {
     return null;
   }
 
-  return { amount, upfrontAmount: upfrontAmount > 0 ? upfrontAmount : undefined, locationId, contactId, publishableKey };
+  return { amount, upfrontAmount: upfrontAmount > 0 ? upfrontAmount : undefined, locationId, contactId, publishableKey, orderId: orderId || undefined };
 }
 
 
@@ -76,6 +78,9 @@ export function AdvitalPaymentPortal() {
     });
     if (params.upfrontAmount !== undefined) {
       q.set('upfrontAmount', String(params.upfrontAmount));
+    }
+    if (params.orderId) {
+      q.set('orderId', params.orderId);
     }
     if (params.publishableKey) {
       q.set('publishableKey', params.publishableKey);

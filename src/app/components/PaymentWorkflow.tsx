@@ -475,7 +475,7 @@ const notifyAdvitalPaymentSuccess = async (paymentDetails: {
     console.log('\n🌐🌐🌐 MAKING API CALL TO ADVITAL (NEW ENDPOINT) 🌐🌐🌐');
     console.log('  URL:', apiUrl);
     console.log('  Method: POST');
-    console.log('  Headers: { "Content-Type": "application/json", "Authorization": "Bearer ***", "Version": "2021-07-28" }');
+    console.log('  Headers: { "Content-Type": "application/json", "Authorization": "Bearer ***" }');
     console.log('  Body:', JSON.stringify(requestBody, null, 2));
 
     // Call Advital API using new record-payment-direct endpoint
@@ -485,7 +485,6 @@ const notifyAdvitalPaymentSuccess = async (paymentDetails: {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${advitalPublishableKey}`,
-        'Version': '2021-07-28', // Required by GHL API
       },
       body: JSON.stringify(requestBody)
     });
@@ -1557,7 +1556,7 @@ return (
               </div>
             ) : (
               <iframe
-                src={`${advitalPortalBaseUrl}/finance-payment-portal?amount=${paymentData.upfrontPayment || 0}&upfrontAmount=${paymentData.upfrontPayment || 0}&locationId=${advitalLocationId}&contactId=${externalParams?.contactId || 'contact_demo'}&publishableKey=${advitalPublishableKey}&orderId=${advitalTransactionId}`}
+                src={`${advitalPortalBaseUrl}/finance-payment-portal?amount=${paymentData.upfrontPayment || 0}&upfrontAmount=${paymentData.upfrontPayment || 0}&locationId=${advitalLocationId}&contactId=${externalParams?.contactId || 'contact_demo'}&publishableKey=${advitalPublishableKey}&orderId=${externalParams?.orderId || ''}`}
                 className="w-full h-full border-0"
                 title="Advital Upfront Payment"
               />
