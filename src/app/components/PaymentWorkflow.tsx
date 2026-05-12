@@ -135,6 +135,9 @@ export function PaymentWorkflow({
   const locationIdRef = useRef(locationId);
   const advitalLocationIdRef = useRef(advitalLocationId);
   const handleFinalSubmitRef = useRef<(() => Promise<void>) | null>(null);
+  
+  // Global flag to ensure mark-paid API is ONLY called once (prevents duplicates from re-renders)
+  const markPaidCalledRef = useRef(false);
 
   console.log(paymentDataRef?.current?.upfrontPayment, "paymentDataRef.current")
 
@@ -1289,6 +1292,18 @@ export function PaymentWorkflow({
                 onSignatureConfirmed={async () => {
                   console.log("\n\n🎯🎯🎯 SIGNATURE CONFIRMED CALLBACK TRIGGERED 🎯🎯🎯");
                   console.log("Timestamp:", new Date().toISOString());
+                  
+                  // Check if API call already made or in progress
+                  if (markPaidCalledRef.current) {
+                    console.log("⏭️⏭️⏭️ SKIPPING: mark-paid API already called/in-progress");
+                    console.log("This prevents duplicate calls from re-renders or race conditions");
+                    return;
+                  }
+                  
+                  // Set flag IMMEDIATELY before any async operations
+                  markPaidCalledRef.current = true;
+                  console.log("🔒 Flag set: This will be the ONLY mark-paid API call");
+                  
                   console.log("About to call notifyAdvitalPaymentSuccess (mark-paid API)...");
                   console.log("Parameters to be passed:");
                   console.log("  - invoiceId (orderId):", externalParams?.orderId);
@@ -1315,7 +1330,7 @@ export function PaymentWorkflow({
                     paymentMethod: 'alphaeon_finance'
                   });
 
-                  console.log("✅ notifyAdvitalPaymentSuccess call completed!");
+                  console.log("✅ notifyAdvitalPaymentSuccess call completed (ONLY ONCE)!");
                 }}
               />
             )}
