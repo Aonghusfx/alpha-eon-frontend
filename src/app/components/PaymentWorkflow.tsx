@@ -469,20 +469,19 @@ export function PaymentWorkflow({
       console.log('  💵 Upfront Amount:', paymentDetails.upfrontAmount);
       console.log('  💵 Financed Amount:', paymentDetails.financedAmount);
       console.log('  🔑 Alphaeon Transaction ID:', paymentDetails.alphaeonTransactionId);
-      console.log('  🎫 Payment Token:', paymentDetails.paymentToken ? 'Present' : 'MISSING');
 
       // Use NEW /api/query endpoint per Advital's latest spec
       const apiUrl = `${advitalPortalBaseUrl}/api/query`;
 
       // Step 2 call (after financing): Pass FULL invoice amount with orderId
-      // This automatically records payment using Advital's private integration token
+      // Empty token + orderId = invoice-only update (skips NMI charge, just marks invoice paid)
       const requestBody = {
         type: "charge_payment",
         amount: paymentDetails.totalAmount, // FULL invoice amount (e.g., $278)
         currency: "USD",
         paymentMethod: {
           type: "card",
-          token: paymentDetails.paymentToken || paymentDetails.upfrontChargeId || '' // Token from upfront payment
+          token: "" // Empty string - skips charge, only updates invoice
         },
         locationId: paymentDetails.locationId,
         contactId: paymentDetails.contactId,
