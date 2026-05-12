@@ -507,6 +507,15 @@ export function PaymentWorkflow({
 
       console.log('📨 Response received! Status:', response.status, response.statusText);
 
+      // Handle 409 Conflict - Payment recording already in progress (this is SUCCESS)
+      if (response.status === 409) {
+        console.log('\n✅✅✅ 409 CONFLICT = PAYMENT RECORDING IN PROGRESS ✅✅✅');
+        console.log('This means payment is being processed by another request or process.');
+        console.log('Invoice will be marked as paid shortly - treating as success.');
+        toast.success('✅ Payment recorded! Invoice is being updated in GHL...');
+        return; // Exit early - this is a success case
+      }
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error('\n❌❌❌ ADVITAL API ERROR ❌❌❌');
