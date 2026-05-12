@@ -417,15 +417,17 @@ useEffect(() => {
   toast.dismiss(toastId);
 }, [paymentData.upfrontPayment, paymentData.advitalUpfrontPaid, currentStep]);
 
-// Notify Advital about payment completion - Using new record-payment-direct endpoint
+// Notify Advital about payment completion - Using /api/query endpoint per Advital spec
 const notifyAdvitalPaymentSuccess = async (paymentDetails: {
   invoiceId?: string;
   locationId?: string;
+  contactId?: string;
   transactionId: string | number;
   totalAmount: number;
   upfrontAmount: number;
   financedAmount: number;
   upfrontChargeId?: string;
+  paymentToken?: string; // Card token from upfront payment
   alphaeonTransactionId: string | number;
   status: string;
   paymentMethod: string;
@@ -449,36 +451,50 @@ const notifyAdvitalPaymentSuccess = async (paymentDetails: {
       return;
     }
 
+    if (!paymentDetails.contactId) {
+      console.error('❌❌❌ VALIDATION FAILED: No contactId provided');
+      console.error('Payment details:', paymentDetails);
+      toast.error('Cannot update invoice: contact ID missing');
+      return;
+    }
+
     console.log('✅ Validation passed, preparing API call...');
 
     // DEBUG: Log exact values being used
     console.log('🔍 DEBUG - Invoice Update Details:');
     console.log('  📋 Invoice ID (orderId):', paymentDetails.invoiceId);
     console.log('  📍 Location ID:', paymentDetails.locationId);
+    console.log('  👤 Contact ID:', paymentDetails.contactId);
     console.log('  💰 Total Amount:', paymentDetails.totalAmount);
     console.log('  💵 Upfront Amount:', paymentDetails.upfrontAmount);
     console.log('  💵 Financed Amount:', paymentDetails.financedAmount);
     console.log('  🔑 Alphaeon Transaction ID:', paymentDetails.alphaeonTransactionId);
+    console.log('  🎫 Payment Token:', paymentDetails.paymentToken ? 'Present' : 'MISSING');
 
-    // Use NEW endpoint provided by Advital: record-payment-direct
-    const apiUrl = `${advitalPortalBaseUrl}/api/invoices/${paymentDetails.invoiceId}/record-payment-direct`;
+    // Use NEW /api/query endpoint per Advital's latest spec
+    const apiUrl = `${advitalPortalBaseUrl}/api/query`;
     
-    // New simplified request format per Advital spec
+    // New format: Step 2 call (after financing) with amount=0
     const requestBody = {
+      type: "charge_payment",
+      amount: 0, // Zero - upfront was already charged in step 1
+      currency: "USD",
+      paymentMethod: {
+        type: "card",
+        token: paymentDetails.paymentToken || paymentDetails.upfrontChargeId || '' // Token from upfront payment
+      },
       locationId: paymentDetails.locationId,
-      amount: paymentDetails.totalAmount,
-      mode: 'cash', // Always 'cash' for financing per Advital spec
-      notes: `Alphaeon financing completed. Upfront: $${paymentDetails.upfrontAmount}, Financing: $${paymentDetails.financedAmount}, TxID: ${paymentDetails.alphaeonTransactionId}`,
-      transactionId: String(paymentDetails.alphaeonTransactionId)
+      contactId: paymentDetails.contactId,
+      orderId: paymentDetails.invoiceId // GHL invoice ID (triggers automatic marking as paid)
     };
 
-    console.log('\n🌐🌐🌐 MAKING API CALL TO ADVITAL (NEW ENDPOINT) 🌐🌐🌐');
+    console.log('\n🌐🌐🌐 MAKING API CALL TO ADVITAL (/api/query) 🌐🌐🌐');
     console.log('  URL:', apiUrl);
     console.log('  Method: POST');
     console.log('  Headers: { "Content-Type": "application/json", "Authorization": "Bearer ***" }');
     console.log('  Body:', JSON.stringify(requestBody, null, 2));
 
-    // Call Advital API using new record-payment-direct endpoint
+    // Call Advital /api/query endpoint
     console.log('⏳ Sending fetch request now...');
     const response = await fetch(apiUrl, {
       method: 'POST',
@@ -1284,19 +1300,23 @@ return (
                 console.log("Parameters to be passed:");
                 console.log("  - invoiceId (orderId):", externalParams?.orderId);
                 console.log("  - locationId:", advitalLocationId);
+                console.log("  - contactId:", externalParams?.contactId);
                 console.log("  - transactionId:", paymentData.transactionId);
                 console.log("  - totalAmount:", orderAmount);
                 console.log("  - upfrontAmount:", paymentData.upfrontPayment);
                 console.log("  - financedAmount:", orderAmount - (paymentData.upfrontPayment || 0));
+                console.log("  - paymentToken:", paymentData.advitalChargeId);
 
                 await notifyAdvitalPaymentSuccess({
                   invoiceId: externalParams?.orderId,
                   locationId: advitalLocationId,
+                  contactId: externalParams?.contactId,
                   transactionId: paymentData.transactionId,
                   totalAmount: orderAmount,
                   upfrontAmount: paymentData.upfrontPayment || 0,
                   financedAmount: orderAmount - (paymentData.upfrontPayment || 0),
                   upfrontChargeId: paymentData.advitalChargeId,
+                  paymentToken: paymentData.advitalChargeId, // Token from upfront payment
                   alphaeonTransactionId: paymentData.transactionId,
                   status: 'completed',
                   paymentMethod: 'alphaeon_finance'
