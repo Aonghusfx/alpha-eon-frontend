@@ -136,7 +136,7 @@ export function PaymentWorkflow({
   const advitalLocationIdRef = useRef(advitalLocationId);
   const handleFinalSubmitRef = useRef<(() => Promise<void>) | null>(null);
   
-  // Global flag to ensure invoice status polling is ONLY started once (prevents duplicate polling from re-renders)
+  // Global flag to ensure Alphaeon callback is ONLY called once (prevents duplicate payment recording)
   const markPaidCalledRef = useRef(false);
 
   console.log(paymentDataRef?.current?.upfrontPayment, "paymentDataRef.current")
@@ -421,73 +421,65 @@ export function PaymentWorkflow({
     toast.dismiss(toastId);
   }, [paymentData.upfrontPayment, paymentData.advitalUpfrontPaid, currentStep]);
 
-  // Poll invoice status after financing completes - Backend handles payment recording via webhook
-  // Per backend recommendation: Alphaeon sends webhook to /api/alphaeon/callback
-  // Frontend just polls /api/invoices/{invoiceId}/status until isPaid: true
-  const pollInvoiceStatus = async (invoiceId: string, locationId: string) => {
-    console.log("\n\n🔄🔄🔄 POLLING INVOICE STATUS 🔄🔄🔄");
-    console.log("Invoice ID:", invoiceId);
-    console.log("Location ID:", locationId);
+  // Notify backend about Alphaeon financing completion
+  // Backend requires frontend to call /api/alphaeon/callback after financing approval
+  const notifyAlphaeonFinancingComplete = async (payload: {
+    invoiceId: string;
+    locationId: string;
+    amount: number;
+    transactionId?: string;
+  }) => {
+    console.log("\n\n🚀🚀🚀 CALLING ALPHAEON CALLBACK API 🚀🚀🚀");
     console.log("Timestamp:", new Date().toISOString());
+    console.log("Payload:", JSON.stringify(payload, null, 2));
 
-    const maxAttempts = 30; // 30 attempts = 2.5 minutes max
-    const pollInterval = 5000; // 5 seconds between polls
-    let attempts = 0;
+    try {
+      const callbackUrl = `${advitalPortalBaseUrl}/api/alphaeon/callback`;
+      console.log('🌐 Callback URL:', callbackUrl);
+      console.log('📤 Method: POST');
+      console.log('📝 Body:', JSON.stringify(payload, null, 2));
 
-    const checkStatus = async (): Promise<boolean> => {
-      attempts++;
-      console.log(`\n🔍 Poll attempt ${attempts}/${maxAttempts}`);
+      const response = await fetch(callbackUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
 
-      try {
-        const statusUrl = `${advitalPortalBaseUrl}/api/invoices/${invoiceId}/status?locationId=${locationId}`;
-        console.log('🌐 Checking status:', statusUrl);
+      console.log('📨 Response received! Status:', response.status, response.statusText);
 
-        const response = await fetch(statusUrl, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' }
-        });
-
-        if (!response.ok) {
-          console.warn(`⚠️ Status check failed: ${response.status} ${response.statusText}`);
-          return false;
-        }
-
-        const result = await response.json();
-        console.log('📦 Status response:', result);
-
-        if (result.isPaid === true) {
-          console.log('\n✅✅✅ INVOICE IS PAID! ✅✅✅');
-          console.log('Backend webhook successfully recorded payment');
-          toast.success('✅ Payment confirmed! Invoice marked as paid.');
-          return true;
-        }
-
-        console.log(`⏳ Invoice not yet paid. Will retry in ${pollInterval / 1000}s...`);
-        return false;
-      } catch (error) {
-        console.error(`❌ Error checking invoice status (attempt ${attempts}):`, error);
-        return false;
-      }
-    };
-
-    // Initial check
-    if (await checkStatus()) {
-      return;
-    }
-
-    // Poll until paid or max attempts reached
-    const pollTimer = setInterval(async () => {
-      if (attempts >= maxAttempts) {
-        clearInterval(pollTimer);
-        console.warn('⚠️ Max polling attempts reached. Payment may still be processing.');
-        toast.warning('Payment is taking longer than expected. Please refresh to check status.');
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('\n❌❌❌ CALLBACK API ERROR ❌❌❌');
+        console.error('  Status:', response.status, response.statusText);
+        console.error('  Response:', errorText);
+        console.error('  URL:', callbackUrl);
+        console.error('  Body:', JSON.stringify(payload, null, 2));
+        
+        toast.error('Failed to record payment. Please contact support.');
         return;
       }
 
-      if (await checkStatus()) {
-        clearInterval(pollTimer);
+      const result = await response.json();
+      console.log('\n✅✅✅ CALLBACK API SUCCESS ✅✅✅');
+      console.log('Response data:', result);
+      
+      if (result.success) {
+        toast.success('✅ Payment recorded! Invoice marked as paid.');
+      } else {
+        console.warn('⚠️ Callback returned success: false');
+        toast.warning('Payment may still be processing. Check invoice status.');
       }
-    }, pollInterval);
+    } catch (error) {
+      console.error('\n❌❌❌ EXCEPTION IN notifyAlphaeonFinancingComplete ❌❌❌');
+      console.error('Error type:', error instanceof Error ? error.constructor.name : typeof error);
+      console.error('Error message:', error instanceof Error ? error.message : String(error));
+      console.error('Full error:', error);
+      console.error('Stack trace:', error instanceof Error ? error.stack : 'N/A');
+      
+      toast.error('Failed to record payment. Payment was successful but invoice update failed.');
+    }
   };
 
   const handleFinalSubmit = async () => {
@@ -1247,36 +1239,41 @@ export function PaymentWorkflow({
                   console.log("\n\n🎯🎯🎯 SIGNATURE CONFIRMED CALLBACK TRIGGERED 🎯🎯🎯");
                   console.log("Timestamp:", new Date().toISOString());
                   
-                  // Check if polling already started
+                  // Check if callback already called
                   if (markPaidCalledRef.current) {
-                    console.log("⏭️⏭️⏭️ SKIPPING: Invoice status polling already started");
-                    console.log("This prevents duplicate polling from re-renders or race conditions");
+                    console.log("⏭️⏭️⏭️ SKIPPING: Alphaeon callback already called");
+                    console.log("This prevents duplicate calls from re-renders or race conditions");
                     return;
                   }
                   
-                  // Set flag IMMEDIATELY before starting polling
+                  // Set flag IMMEDIATELY before calling API
                   markPaidCalledRef.current = true;
-                  console.log("🔒 Flag set: Starting invoice status polling (backend handles payment recording)");
+                  console.log("🔒 Flag set: This will be the ONLY callback call");
                   
                   if (!externalParams?.orderId || !advitalLocationId) {
-                    console.error('❌ Cannot poll invoice status: Missing invoiceId or locationId');
+                    console.error('❌ Cannot call callback: Missing invoiceId or locationId');
                     console.error('  - invoiceId:', externalParams?.orderId);
                     console.error('  - locationId:', advitalLocationId);
-                    toast.error('Cannot verify payment: Missing invoice information');
+                    toast.error('Cannot record payment: Missing invoice information');
                     return;
                   }
 
-                  console.log("🔄 Starting invoice status polling...");
-                  console.log("  - Invoice ID:", externalParams.orderId);
-                  console.log("  - Location ID:", advitalLocationId);
-                  console.log("  - Transaction ID:", paymentData.transactionId);
-                  console.log("\n📌 Backend will record payment via Alphaeon webhook to /api/alphaeon/callback");
-                  console.log("👀 Frontend polling /api/invoices/{id}/status until isPaid: true");
+                  console.log("🚀 Calling Alphaeon callback API...");
+                  console.log("  - Invoice ID (GHL):", externalParams.orderId);
+                  console.log("  - Location ID (GHL):", advitalLocationId);
+                  console.log("  - Total Amount:", orderAmount);
+                  console.log("  - Transaction ID (Alphaeon):", paymentData.transactionId);
+                  console.log("\n📌 Backend requirement: POST /api/alphaeon/callback");
 
-                  // Poll invoice status - backend handles payment recording via webhook
-                  await pollInvoiceStatus(externalParams.orderId, advitalLocationId);
+                  // Call backend callback endpoint - backend will mark invoice as paid in GHL
+                  await notifyAlphaeonFinancingComplete({
+                    invoiceId: externalParams.orderId,
+                    locationId: advitalLocationId,
+                    amount: orderAmount,
+                    transactionId: paymentData.transactionId ? String(paymentData.transactionId) : undefined
+                  });
 
-                  console.log("✅ Invoice status check complete!");
+                  console.log("✅ Callback complete!");
                 }}
               />
             )}
