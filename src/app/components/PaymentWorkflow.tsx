@@ -1586,7 +1586,7 @@ export function PaymentWorkflow({
                 </div>
               ) : (
                 <iframe
-                  src={`${advitalPortalBaseUrl}/finance-payment-portal?amount=${paymentData.upfrontPayment || 0}&upfrontAmount=${paymentData.upfrontPayment || 0}&locationId=${advitalLocationId}&contactId=${externalParams?.contactId || 'contact_demo'}&publishableKey=${advitalPublishableKey}&skipGhlNotification=true`}
+                  src={`${advitalPortalBaseUrl}/finance-payment-portal?amount=${paymentData.upfrontPayment || 0}&upfrontAmount=${paymentData.upfrontPayment || 0}&locationId=${advitalLocationId}&contactId=${externalParams?.contactId || 'contact_demo'}&orderId=${externalParams?.orderId || ''}&publishableKey=${advitalPublishableKey}`}
                   className="w-full h-full border-0"
                   title="Advital Upfront Payment"
                 />

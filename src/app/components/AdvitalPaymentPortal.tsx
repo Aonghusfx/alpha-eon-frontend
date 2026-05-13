@@ -26,6 +26,7 @@ type PortalParams = {
   locationId: string;
   contactId: string;
   publishableKey?: string;
+  orderId?: string;
 };
 
 type PaymentResult = {
@@ -50,13 +51,13 @@ function getParams(): PortalParams | null {
   const locationId = query.get('locationId') || '';
   const contactId = query.get('contactId') || '';
   const publishableKey = import.meta.env.VITE_ADVITAL_PUBLISHABLE_KEY || '';
-  // NOTE: orderId NOT included in upfront payment per Advital spec
+  const orderId = query.get('orderId') || '';
 
   if (!Number.isFinite(amount) || amount <= 0 || !locationId || !contactId) {
     return null;
   }
 
-  return { amount, upfrontAmount: upfrontAmount > 0 ? upfrontAmount : undefined, locationId, contactId, publishableKey };
+  return { amount, upfrontAmount: upfrontAmount > 0 ? upfrontAmount : undefined, locationId, contactId, publishableKey, orderId: orderId || undefined };
 }
 
 
@@ -74,12 +75,13 @@ export function AdvitalPaymentPortal() {
       amount: String(params.amount),
       locationId: params.locationId,
       contactId: params.contactId,
-      skipGhlNotification: 'true', // Skip GHL notification for upfront - callback will handle it
     });
     if (params.upfrontAmount !== undefined) {
       q.set('upfrontAmount', String(params.upfrontAmount));
     }
-    // NOTE: orderId NOT included - per Advital spec, only use in second API call
+    if (params.orderId) {
+      q.set('orderId', params.orderId);
+    }
     if (params.publishableKey) {
       q.set('publishableKey', params.publishableKey);
     }
