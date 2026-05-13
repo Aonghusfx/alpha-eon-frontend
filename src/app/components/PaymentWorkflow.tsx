@@ -446,27 +446,41 @@ export function PaymentWorkflow({
   }) => {
     console.log("\n\n🚀🚀🚀 CALLING ALPHAEON CALLBACK API 🚀🚀🚀");
     console.log("Timestamp:", new Date().toISOString());
-    console.log("Payload:", JSON.stringify(payload, null, 2));
-    console.log("\n🔍 DEBUG INFO:");
-    console.log("  - User Agent:", navigator.userAgent);
-    console.log("  - Page URL:", window.location.href);
-    console.log("  - Session ID:", sessionStorage.getItem('sessionId') || 'N/A');
+    console.log("Invoice ID:", payload.invoiceId);
+    console.log("Location ID:", payload.locationId);
+    console.log("Amount:", payload.amount);
+    console.log("Transaction ID:", payload.transactionId || 'N/A');
 
     try {
       const callbackUrl = `${advitalPortalBaseUrl}/api/alphaeon/callback`;
       console.log('🌐 Callback URL:', callbackUrl);
       console.log('📤 Method: POST');
-      console.log('📝 Body:', JSON.stringify(payload, null, 2));
+      
+      // ✅ IMPORTANT: Metadata goes in body, NOT headers (avoids CORS preflight issues)
+      // Only standard headers allowed: Content-Type and Authorization
+      const requestBody = {
+        ...payload,
+        metadata: {
+          requestSource: 'alphaeon-signature-confirmation',
+          frontendVersion: '1.0.0',
+          timestamp: Date.now(),
+          userAgent: navigator.userAgent,
+          pageUrl: window.location.href,
+          sessionId: sessionStorage.getItem('sessionId') || undefined
+        }
+      };
+      
+      console.log('📝 Body:', JSON.stringify(requestBody, null, 2));
       console.log('⏰ Request Time:', new Date().toISOString());
 
       const response = await fetch(callbackUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Frontend-Version': '1.0.0',
-          'X-Request-Source': 'alphaeon-signature-confirmation',
+          // ❌ NO custom headers - they cause CORS preflight failures
+          // All metadata goes in request body instead
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(requestBody)
       });
 
       console.log('📨 Response received! Status:', response.status, response.statusText);
