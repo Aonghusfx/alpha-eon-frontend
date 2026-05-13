@@ -1316,11 +1316,13 @@ export function PaymentWorkflow({
                   console.log("  - Transaction ID (Alphaeon):", paymentData.transactionId);
                   console.log("\n📌 Backend requirement: POST /api/alphaeon/callback");
                   
-                  // Add 2-second delay to let any other concurrent processes finish
-                  // This helps avoid 409 conflicts if GHL has automation/workflows running
-                  console.log("⏳ Waiting 2 seconds to avoid race conditions with GHL automation...");
-                  await new Promise(resolve => setTimeout(resolve, 2000));
-                  console.log("✅ Delay complete, proceeding with callback");
+                  // CRITICAL: Wait 5 seconds before calling callback
+                  // GHL needs time to finish invoice setup internally after creation
+                  // Calling immediately causes 409 "already in progress" errors
+                  console.log("⏳ Waiting 5 seconds for GHL to complete invoice setup...");
+                  toast.info("Processing payment... Please wait.", { duration: 5000 });
+                  await new Promise(resolve => setTimeout(resolve, 5000));
+                  console.log("✅ Delay complete, calling callback now");
 
                   // Call backend callback endpoint - backend will mark invoice as paid in GHL
                   await notifyAlphaeonFinancingComplete({
