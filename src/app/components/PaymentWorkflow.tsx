@@ -135,7 +135,7 @@ export function PaymentWorkflow({
   const locationIdRef = useRef(locationId);
   const advitalLocationIdRef = useRef(advitalLocationId);
   const handleFinalSubmitRef = useRef<(() => Promise<void>) | null>(null);
-  
+
   // CRITICAL: Ensure /api/alphaeon/callback is called ONLY ONCE per financing transaction
   // Prevents duplicate payment recording from re-renders, race conditions, or user actions
   const markPaidCalledRef = useRef(false);
@@ -455,7 +455,7 @@ export function PaymentWorkflow({
       const callbackUrl = `${advitalPortalBaseUrl}/api/alphaeon/callback`;
       console.log('🌐 Callback URL:', callbackUrl);
       console.log('📤 Method: POST');
-      
+
       // ✅ IMPORTANT: Metadata goes in body, NOT headers (avoids CORS preflight issues)
       // Only standard headers allowed: Content-Type and Authorization
       const requestBody = {
@@ -469,7 +469,7 @@ export function PaymentWorkflow({
           sessionId: sessionStorage.getItem('sessionId') || undefined
         }
       };
-      
+
       console.log('📝 Body:', JSON.stringify(requestBody, null, 2));
       console.log('⏰ Request Time:', new Date().toISOString());
 
@@ -493,7 +493,7 @@ export function PaymentWorkflow({
         console.error('  Response:', errorText);
         console.error('  URL:', callbackUrl);
         console.error('  Body:', JSON.stringify(payload, null, 2));
-        
+
         // Handle specific error cases
         if (response.status === 409) {
           console.warn('⚠️ 409 Conflict: Payment already being processed');
@@ -511,7 +511,7 @@ export function PaymentWorkflow({
       const result = await response.json();
       console.log('\n✅✅✅ CALLBACK API SUCCESS ✅✅✅');
       console.log('Response data:', result);
-      
+
       // Backend returns { success: true/false }
       // Show success/error immediately - no polling needed!
       if (result.success === true) {
@@ -528,7 +528,7 @@ export function PaymentWorkflow({
       console.error('Error message:', error instanceof Error ? error.message : String(error));
       console.error('Full error:', error);
       console.error('Stack trace:', error instanceof Error ? error.stack : 'N/A');
-      
+
       toast.error('Failed to record payment. Payment was successful but invoice update failed.');
     }
   };
@@ -1289,18 +1289,18 @@ export function PaymentWorkflow({
                 onSignatureConfirmed={async () => {
                   console.log("\n\n🎯🎯🎯 SIGNATURE CONFIRMED CALLBACK TRIGGERED 🎯🎯🎯");
                   console.log("Timestamp:", new Date().toISOString());
-                  
+
                   // Check if callback already called
                   if (markPaidCalledRef.current) {
                     console.log("⏭️⏭️⏭️ SKIPPING: Alphaeon callback already called");
                     console.log("This prevents duplicate calls from re-renders or race conditions");
                     return;
                   }
-                  
+
                   // Set flag IMMEDIATELY before calling API
                   markPaidCalledRef.current = true;
                   console.log("🔒 Flag set: This will be the ONLY callback call");
-                  
+
                   if (!externalParams?.orderId || !advitalLocationId) {
                     console.error('❌ Cannot call callback: Missing invoiceId or locationId');
                     console.error('  - invoiceId:', externalParams?.orderId);
@@ -1315,7 +1315,7 @@ export function PaymentWorkflow({
                   console.log("  - Total Amount:", orderAmount);
                   console.log("  - Transaction ID (Alphaeon):", paymentData.transactionId);
                   console.log("\n📌 Backend requirement: POST /api/alphaeon/callback");
-                  
+
                   // CRITICAL: Wait 5 seconds before calling callback
                   // GHL needs time to finish invoice setup internally after creation
                   // Calling immediately causes 409 "already in progress" errors

@@ -21,7 +21,7 @@ export function SuccessStep({ paymentData, updatePaymentData, onComplete, onSign
   const [plaidUrl, setPlaidUrl] = useState<string | null>(null);
   const [isSigned, setIsSigned] = useState(false);
   const [canCloseSignatureModal, setCanCloseSignatureModal] = useState(false);
-  
+
   // CRITICAL: Global ref to ensure callback is NEVER called more than once
   // This prevents duplicates even if multiple polling intervals exist due to re-renders
   const globalCallbackCalledRef = React.useRef(false);
@@ -103,7 +103,7 @@ export function SuccessStep({ paymentData, updatePaymentData, onComplete, onSign
               clearInterval(pollInterval);
               return;
             }
-            
+
             // Check if callback already called to prevent duplicate API calls
             if (callbackCalled) {
               console.log("⏭️ Callback already called, skipping duplicate call");
@@ -112,7 +112,7 @@ export function SuccessStep({ paymentData, updatePaymentData, onComplete, onSign
 
             console.log("\n✨✨✨ SIGNATURE CONFIRMED! ✨✨✨");
             console.log("Status:", details.status);
-            
+
             // Set BOTH flags IMMEDIATELY before any async operations
             globalCallbackCalledRef.current = true;
             callbackCalled = true;
@@ -252,7 +252,7 @@ export function SuccessStep({ paymentData, updatePaymentData, onComplete, onSign
                   <br />
                   Transaction: {paymentData.transactionId}
                 </div>
-                
+
                 <iframe
                   src={paymentData.signatureLink}
                   className="w-full h-full border-0"
