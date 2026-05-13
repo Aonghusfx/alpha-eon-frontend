@@ -447,22 +447,30 @@ export function PaymentWorkflow({
     console.log("\n\n🚀🚀🚀 CALLING ALPHAEON CALLBACK API 🚀🚀🚀");
     console.log("Timestamp:", new Date().toISOString());
     console.log("Payload:", JSON.stringify(payload, null, 2));
+    console.log("\n🔍 DEBUG INFO:");
+    console.log("  - User Agent:", navigator.userAgent);
+    console.log("  - Page URL:", window.location.href);
+    console.log("  - Session ID:", sessionStorage.getItem('sessionId') || 'N/A');
 
     try {
       const callbackUrl = `${advitalPortalBaseUrl}/api/alphaeon/callback`;
       console.log('🌐 Callback URL:', callbackUrl);
       console.log('📤 Method: POST');
       console.log('📝 Body:', JSON.stringify(payload, null, 2));
+      console.log('⏰ Request Time:', new Date().toISOString());
 
       const response = await fetch(callbackUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-Frontend-Version': '1.0.0',
+          'X-Request-Source': 'alphaeon-signature-confirmation',
         },
         body: JSON.stringify(payload)
       });
 
       console.log('📨 Response received! Status:', response.status, response.statusText);
+      console.log('⏰ Response Time:', new Date().toISOString());
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -472,7 +480,17 @@ export function PaymentWorkflow({
         console.error('  URL:', callbackUrl);
         console.error('  Body:', JSON.stringify(payload, null, 2));
         
-        toast.error('Failed to record payment. Please contact support.');
+        // Handle specific error cases
+        if (response.status === 409) {
+          console.warn('⚠️ 409 Conflict: Payment already being processed');
+          console.warn('This usually means GHL automation or another system is recording the payment');
+          toast.warning('Payment is being processed. Please check invoice status in GHL.');
+        } else if (response.status === 500) {
+          console.error('💥 500 Server Error: Backend failed to process payment');
+          toast.error('Server error while recording payment. Please contact support.');
+        } else {
+          toast.error('Failed to record payment. Please contact support.');
+        }
         return;
       }
 
@@ -1283,6 +1301,12 @@ export function PaymentWorkflow({
                   console.log("  - Total Amount:", orderAmount);
                   console.log("  - Transaction ID (Alphaeon):", paymentData.transactionId);
                   console.log("\n📌 Backend requirement: POST /api/alphaeon/callback");
+                  
+                  // Add 2-second delay to let any other concurrent processes finish
+                  // This helps avoid 409 conflicts if GHL has automation/workflows running
+                  console.log("⏳ Waiting 2 seconds to avoid race conditions with GHL automation...");
+                  await new Promise(resolve => setTimeout(resolve, 2000));
+                  console.log("✅ Delay complete, proceeding with callback");
 
                   // Call backend callback endpoint - backend will mark invoice as paid in GHL
                   await notifyAlphaeonFinancingComplete({
