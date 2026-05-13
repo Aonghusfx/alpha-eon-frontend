@@ -21,6 +21,10 @@ export function SuccessStep({ paymentData, updatePaymentData, onComplete, onSign
   const [plaidUrl, setPlaidUrl] = useState<string | null>(null);
   const [isSigned, setIsSigned] = useState(false);
   const [canCloseSignatureModal, setCanCloseSignatureModal] = useState(false);
+  
+  // CRITICAL: Global ref to ensure callback is NEVER called more than once
+  // This prevents duplicates even if multiple polling intervals exist due to re-renders
+  const globalCallbackCalledRef = React.useRef(false);
 
   // DEBUG: Log when component mounts
   React.useEffect(() => {
@@ -93,6 +97,13 @@ export function SuccessStep({ paymentData, updatePaymentData, onComplete, onSign
           console.log(`📋 Full details:`, JSON.stringify(details, null, 2));
 
           if (details.status === 'signed' || details.status === 'completed' || details.status === 'funded') {
+            // Check GLOBAL ref first - prevents duplicates across multiple polling intervals
+            if (globalCallbackCalledRef.current) {
+              console.log("⏭️⏭️⏭️ GLOBAL: Callback already called by another interval, skipping");
+              clearInterval(pollInterval);
+              return;
+            }
+            
             // Check if callback already called to prevent duplicate API calls
             if (callbackCalled) {
               console.log("⏭️ Callback already called, skipping duplicate call");
@@ -102,7 +113,8 @@ export function SuccessStep({ paymentData, updatePaymentData, onComplete, onSign
             console.log("\n✨✨✨ SIGNATURE CONFIRMED! ✨✨✨");
             console.log("Status:", details.status);
             
-            // Set flag IMMEDIATELY before any async operations
+            // Set BOTH flags IMMEDIATELY before any async operations
+            globalCallbackCalledRef.current = true;
             callbackCalled = true;
             clearInterval(pollInterval);
 
@@ -114,15 +126,15 @@ export function SuccessStep({ paymentData, updatePaymentData, onComplete, onSign
 
             // Notify Advital after signature confirmation
             if (onSignatureConfirmed) {
-              console.log("\n📤📤📤 CALLING ADVITAL API CALLBACK NOW 📤📤📤");
+              console.log("\n📤📤📤 CALLING PAYMENT CALLBACK (ONE TIME ONLY) 📤📤📤");
               console.log("Callback type:", typeof onSignatureConfirmed);
               // toast.info removed - causes console.info crash
               try {
                 await onSignatureConfirmed();
-                console.log("\n✅✅✅ ADVITAL API CALL COMPLETED SUCCESSFULLY ✅✅✅");
+                console.log("\n✅✅✅ PAYMENT CALLBACK COMPLETED SUCCESSFULLY ✅✅✅");
                 toast.success("Invoice updated successfully!");
               } catch (error) {
-                console.error("\n❌❌❌ ERROR CALLING ADVITAL API ❌❌❌", error);
+                console.error("\n❌❌❌ ERROR CALLING PAYMENT CALLBACK ❌❌❌", error);
                 toast.error("Failed to update invoice: " + (error instanceof Error ? error.message : String(error)));
               }
             } else {
@@ -152,7 +164,7 @@ export function SuccessStep({ paymentData, updatePaymentData, onComplete, onSign
         clearInterval(pollInterval);
       }
     };
-  }, [paymentData.isSignaturePending, paymentData.transactionId, updatePaymentData, onSignatureConfirmed]);
+  }, [paymentData.isSignaturePending, paymentData.transactionId, updatePaymentData]); // ✅ Removed onSignatureConfirmed to prevent multiple intervals
 
   const closeSignatureModal = () => {
     updatePaymentData({ isSignaturePending: false });
