@@ -1320,7 +1320,7 @@ export function PaymentWorkflow({
                   // GHL needs time to finish invoice setup internally after creation
                   // Calling immediately causes 409 "already in progress" errors
                   console.log("⏳ Waiting 5 seconds for GHL to complete invoice setup...");
-                  toast.info("Processing payment... Please wait.", { duration: 5000 });
+                  toast.loading("Processing payment... Please wait.", { duration: 5000 });
                   await new Promise(resolve => setTimeout(resolve, 5000));
                   console.log("✅ Delay complete, calling callback now");
 
