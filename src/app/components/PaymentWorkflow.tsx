@@ -136,7 +136,8 @@ export function PaymentWorkflow({
   const advitalLocationIdRef = useRef(advitalLocationId);
   const handleFinalSubmitRef = useRef<(() => Promise<void>) | null>(null);
   
-  // Global flag to ensure Alphaeon callback is ONLY called once (prevents duplicate payment recording)
+  // CRITICAL: Ensure /api/alphaeon/callback is called ONLY ONCE per financing transaction
+  // Prevents duplicate payment recording from re-renders, race conditions, or user actions
   const markPaidCalledRef = useRef(false);
 
   console.log(paymentDataRef?.current?.upfrontPayment, "paymentDataRef.current")
@@ -421,8 +422,22 @@ export function PaymentWorkflow({
     toast.dismiss(toastId);
   }, [paymentData.upfrontPayment, paymentData.advitalUpfrontPaid, currentStep]);
 
-  // Notify backend about Alphaeon financing completion
-  // Backend requires frontend to call /api/alphaeon/callback after financing approval
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ALPHAEON FINANCING CALLBACK - Backend Requirement
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // IMPORTANT: Call /api/alphaeon/callback ONLY ONCE after financing approval
+  // 
+  // Backend handles:
+  // - Marking invoice as paid in GHL
+  // - Automatic retries if needed
+  // - Returns immediate success/error response
+  //
+  // Frontend must:
+  // - Call endpoint once (duplicate prevention via ref flag)
+  // - Wait for response (no polling needed)
+  // - Show success if response.success = true
+  // - Show error if response.success = false
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   const notifyAlphaeonFinancingComplete = async (payload: {
     invoiceId: string;
     locationId: string;
@@ -465,11 +480,15 @@ export function PaymentWorkflow({
       console.log('\n✅✅✅ CALLBACK API SUCCESS ✅✅✅');
       console.log('Response data:', result);
       
-      if (result.success) {
-        toast.success('✅ Payment recorded! Invoice marked as paid.');
+      // Backend returns { success: true/false }
+      // Show success/error immediately - no polling needed!
+      if (result.success === true) {
+        console.log('✅ Backend confirmed: Invoice marked as paid in GHL');
+        toast.success('✅ Payment confirmed! Invoice marked as paid.');
       } else {
-        console.warn('⚠️ Callback returned success: false');
-        toast.warning('Payment may still be processing. Check invoice status.');
+        console.error('❌ Backend returned success: false');
+        console.error('Error details:', result.error || result.message || 'Unknown error');
+        toast.error(`❌ Failed to record payment: ${result.error || result.message || 'Please contact support'}`);
       }
     } catch (error) {
       console.error('\n❌❌❌ EXCEPTION IN notifyAlphaeonFinancingComplete ❌❌❌');
