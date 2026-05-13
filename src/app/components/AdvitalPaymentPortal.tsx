@@ -74,6 +74,7 @@ export function AdvitalPaymentPortal() {
       amount: String(params.amount),
       locationId: params.locationId,
       contactId: params.contactId,
+      skipGhlNotification: 'true', // Skip GHL notification for upfront - callback will handle it
     });
     if (params.upfrontAmount !== undefined) {
       q.set('upfrontAmount', String(params.upfrontAmount));
