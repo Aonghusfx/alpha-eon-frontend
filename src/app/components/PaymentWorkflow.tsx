@@ -558,6 +558,20 @@ export function PaymentWorkflow({
         !data.advitalUpfrontPaid
       ) {
         console.log('💳 Opening Advital payment iframe for upfront payment...');
+        
+        // CRITICAL: Verify orderId is present before opening iframe
+        if (!externalParams?.orderId) {
+          console.error('❌ CRITICAL: orderId is MISSING - cannot process upfront payment');
+          console.error('Without orderId, backend cannot record payment on invoice!');
+          setIsSearchingAccount(false);
+          toast.error('Missing invoice ID - cannot process upfront payment. Please contact support.');
+          return;
+        }
+        
+        console.log('✅ orderId confirmed:', externalParams.orderId);
+        console.log('📍 LocationId:', advitalLocationId);
+        console.log('💰 Upfront amount:', data.upfrontPayment);
+        
         // Generate unique transaction ID to prevent duplicate detection
         const uniqueTransactionId = `TXN-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         setAdvitalTransactionId(uniqueTransactionId);
@@ -1584,13 +1598,40 @@ export function PaymentWorkflow({
                     </div>
                   </div>
                 </div>
-              ) : (
-                <iframe
-                  src={`${advitalPortalBaseUrl}/finance-payment-portal?amount=${paymentData.upfrontPayment || 0}&upfrontAmount=${paymentData.upfrontPayment || 0}&locationId=${advitalLocationId}&contactId=${externalParams?.contactId || 'contact_demo'}&orderId=${externalParams?.orderId || ''}&publishableKey=${advitalPublishableKey}`}
-                  className="w-full h-full border-0"
-                  title="Advital Upfront Payment"
-                />
-              )}
+              ) : (() => {
+                // Build iframe URL with required parameters
+                const iframeParams = new URLSearchParams({
+                  amount: String(paymentData.upfrontPayment || 0),
+                  upfrontAmount: String(paymentData.upfrontPayment || 0),
+                  locationId: advitalLocationId,
+                  contactId: externalParams?.contactId || 'contact_demo',
+                  publishableKey: advitalPublishableKey
+                });
+                
+                // CRITICAL: Only add orderId if it exists (required for backend to record payment)
+                if (externalParams?.orderId) {
+                  iframeParams.set('orderId', externalParams.orderId);
+                }
+                
+                const iframeUrl = `${advitalPortalBaseUrl}/finance-payment-portal?${iframeParams.toString()}`;
+                
+                // Log the complete URL for debugging
+                console.log('\n🔗 Upfront Payment Iframe URL:', iframeUrl);
+                console.log('📋 URL includes orderId:', iframeParams.has('orderId'));
+                if (iframeParams.has('orderId')) {
+                  console.log('✅ orderId value:', iframeParams.get('orderId'));
+                } else {
+                  console.error('❌ WARNING: orderId NOT included in iframe URL!');
+                }
+                
+                return (
+                  <iframe
+                    src={iframeUrl}
+                    className="w-full h-full border-0"
+                    title="Advital Upfront Payment"
+                  />
+                );
+              })()}
             </div>
           </div>
         </div>

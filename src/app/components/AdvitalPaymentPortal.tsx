@@ -81,11 +81,16 @@ export function AdvitalPaymentPortal() {
     }
     if (params.orderId) {
       q.set('orderId', params.orderId);
+      console.log('✅ AdvitalPaymentPortal: orderId included in iframe URL:', params.orderId);
+    } else {
+      console.warn('⚠️ AdvitalPaymentPortal: orderId is MISSING - backend cannot record payment on invoice!');
     }
     if (params.publishableKey) {
       q.set('publishableKey', params.publishableKey);
     }
-    return `${portalBaseUrl}/finance-payment-portal?${q.toString()}`;
+    const finalUrl = `${portalBaseUrl}/finance-payment-portal?${q.toString()}`;
+    console.log('🔗 AdvitalPaymentPortal iframe URL:', finalUrl);
+    return finalUrl;
   }, [params]);
 
 
