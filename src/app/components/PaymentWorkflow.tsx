@@ -498,7 +498,7 @@ export function PaymentWorkflow({
         if (response.status === 409) {
           console.warn('⚠️ 409 Conflict: Payment already being processed');
           console.warn('This usually means GHL automation or another system is recording the payment');
-          toast.warning('Payment is being processed. Please check invoice status in GHL.');
+          toast('⚠️ Payment is being processed. Please check invoice status in GHL.', { icon: '⚠️', duration: 6000 });
         } else if (response.status === 500) {
           console.error('💥 500 Server Error: Backend failed to process payment');
           toast.error('Server error while recording payment. Please contact support.');

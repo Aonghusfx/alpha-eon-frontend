@@ -143,7 +143,7 @@ export function SuccessStep({ paymentData, updatePaymentData, onComplete, onSign
             }
           } else if (pollCount >= maxPolls) {
             console.warn("⚠️ Maximum polling attempts reached, stopping...");
-            toast.warning("Signature taking longer than expected");
+            toast('⚠️ Signature taking longer than expected', { icon: '⚠️', duration: 6000 });
             clearInterval(pollInterval);
           } else {
             console.log(`  - Status still: ${details.status || 'unknown'}, will retry (${pollCount}/${maxPolls})`);
