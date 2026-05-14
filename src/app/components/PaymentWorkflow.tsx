@@ -128,6 +128,8 @@ export function PaymentWorkflow({
   const [iframeApplicationStatus, setIframeApplicationStatus] = useState<string | null>(null);
   const [showAdvitalUpfrontIframe, setShowAdvitalUpfrontIframe] = useState(false);
   const [advitalTransactionId, setAdvitalTransactionId] = useState<string>('');
+  const [isVerifyingInvoiceStatus, setIsVerifyingInvoiceStatus] = useState(false);
+  const [invoiceReadyForFinancing, setInvoiceReadyForFinancing] = useState(false);
 
   // Use refs to avoid stale closures in the postMessage event listener
   const paymentDataRef = useRef(paymentData);
@@ -139,6 +141,7 @@ export function PaymentWorkflow({
   // CRITICAL: Ensure /api/alphaeon/callback is called ONLY ONCE per financing transaction
   // Prevents duplicate payment recording from re-renders, race conditions, or user actions
   const markPaidCalledRef = useRef(false);
+  const statusCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   console.log(paymentDataRef?.current?.upfrontPayment, "paymentDataRef.current")
 
@@ -382,7 +385,20 @@ export function PaymentWorkflow({
         });
 
         setShowAdvitalUpfrontIframe(false);
-        toast.success('✅ Upfront payment complete! Now select a financing plan and click Submit Sale.', { duration: 4000 });
+        toast.success('✅ Upfront payment complete! Verifying with GHL...', { duration: 3000 });
+
+        // Start polling invoice status to ensure GHL has recorded the payment
+        // This prevents 409 race conditions when callback tries to mark invoice paid
+        if (externalParams?.orderId && currentAdvitalLocationId) {
+          console.log('🔄 Starting invoice status verification...');
+          startInvoiceStatusPolling(externalParams.orderId, currentAdvitalLocationId);
+        } else {
+          console.warn('⚠️ Missing orderId or locationId - skipping invoice status check');
+          console.warn('orderId:', externalParams?.orderId);
+          console.warn('locationId:', currentAdvitalLocationId);
+          // Still allow them to proceed even if we can't verify
+          setInvoiceReadyForFinancing(true);
+        }
 
         // DO NOT auto-submit - let user select plan first, then manually click Submit Sale
       }
@@ -419,8 +435,18 @@ export function PaymentWorkflow({
       );
       return;
     }
+    
+    // Show verification status if payment is complete but not yet verified
+    if ((paymentData.upfrontPayment || 0) > 0 && paymentData.advitalUpfrontPaid && !invoiceReadyForFinancing && currentStep === 3) {
+      toast(
+        `⏳ Verifying payment with GHL... This takes 2-5 seconds. The Submit Sale button will be enabled once verified.`,
+        { id: toastId, icon: '⏳', duration: Infinity }
+      );
+      return;
+    }
+    
     toast.dismiss(toastId);
-  }, [paymentData.upfrontPayment, paymentData.advitalUpfrontPaid, currentStep]);
+  }, [paymentData.upfrontPayment, paymentData.advitalUpfrontPaid, currentStep, invoiceReadyForFinancing]);
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // ALPHAEON FINANCING CALLBACK - Backend Requirement
@@ -532,6 +558,106 @@ export function PaymentWorkflow({
       toast.error('Failed to record payment. Payment was successful but invoice update failed.');
     }
   };
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // INVOICE STATUS VERIFICATION (Prevents 409 Race Condition)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // After upfront payment, poll GHL invoice status to ensure payment is recorded
+  // before allowing user to proceed with Alphaeon financing submission.
+  // This prevents the race condition where callback tries to mark invoice paid
+  // while upfront payment is still being processed by GHL.
+  const checkInvoiceStatus = async (invoiceId: string, locationId: string): Promise<boolean> => {
+    try {
+      console.log('🔍 Checking invoice status...', { invoiceId, locationId });
+      
+      const response = await fetch(
+        `${advitalPortalBaseUrl}/api/check-invoice-status?invoiceId=${invoiceId}&locationId=${locationId}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        console.error('❌ Invoice status check failed:', response.status, response.statusText);
+        return false;
+      }
+
+      const result = await response.json();
+      console.log('📊 Invoice status:', result);
+
+      return result.readyForFinancing === true;
+    } catch (error) {
+      console.error('❌ Error checking invoice status:', error);
+      return false;
+    }
+  };
+
+  const startInvoiceStatusPolling = (invoiceId: string, locationId: string) => {
+    console.log('\n⏳ Starting invoice status polling...');
+    console.log('Invoice ID:', invoiceId);
+    console.log('Location ID:', locationId);
+
+    setIsVerifyingInvoiceStatus(true);
+    setInvoiceReadyForFinancing(false);
+
+    let pollCount = 0;
+    const maxPolls = 20; // 20 attempts × 3 seconds = 60 seconds max
+    const pollInterval = 3000; // 3 seconds
+
+    const toastId = toast.loading('⏳ Verifying payment with GHL... This may take a few seconds.', {
+      duration: 60000,
+    });
+
+    statusCheckIntervalRef.current = setInterval(async () => {
+      pollCount++;
+      console.log(`🔄 Invoice status check attempt ${pollCount}/${maxPolls}`);
+
+      const isReady = await checkInvoiceStatus(invoiceId, locationId);
+
+      if (isReady) {
+        console.log('✅ Invoice ready for financing!');
+        setIsVerifyingInvoiceStatus(false);
+        setInvoiceReadyForFinancing(true);
+        
+        if (statusCheckIntervalRef.current) {
+          clearInterval(statusCheckIntervalRef.current);
+          statusCheckIntervalRef.current = null;
+        }
+
+        toast.success('✅ Payment verified! You can now complete the financing application.', {
+          id: toastId,
+          duration: 5000,
+        });
+      } else if (pollCount >= maxPolls) {
+        console.warn('⚠️ Invoice status check timeout - allowing user to proceed anyway');
+        setIsVerifyingInvoiceStatus(false);
+        setInvoiceReadyForFinancing(true); // Allow them to proceed after timeout
+        
+        if (statusCheckIntervalRef.current) {
+          clearInterval(statusCheckIntervalRef.current);
+          statusCheckIntervalRef.current = null;
+        }
+
+        toast('⚠️ Payment verification taking longer than expected. Proceeding anyway...', {
+          id: toastId,
+          duration: 5000,
+        });
+      }
+    }, pollInterval);
+  };
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (statusCheckIntervalRef.current) {
+        clearInterval(statusCheckIntervalRef.current);
+        statusCheckIntervalRef.current = null;
+      }
+    };
+  }, []);
 
   const handleFinalSubmit = async () => {
     console.log('\n🎯🎯🎯 handleFinalSubmit CALLED 🎯🎯🎯');
@@ -1180,6 +1306,26 @@ export function PaymentWorkflow({
                     </AlertDescription>
                   </Alert>
                 )}
+                
+                {/* Invoice Verification Status Alert */}
+                {paymentData.upfrontPayment > 0 && paymentData.advitalUpfrontPaid && !invoiceReadyForFinancing && (
+                  <Alert className="bg-yellow-50 border-yellow-300 text-yellow-900">
+                    <Loader2 className="h-4 w-4 text-yellow-600 animate-spin" />
+                    <AlertDescription>
+                      ⏳ Verifying payment with GHL... This typically takes 2-5 seconds. The Submit Sale button will be enabled once verification is complete.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
+                {paymentData.upfrontPayment > 0 && paymentData.advitalUpfrontPaid && invoiceReadyForFinancing && (
+                  <Alert className="bg-green-50 border-green-300 text-green-900">
+                    <Check className="h-4 w-4 text-green-600" />
+                    <AlertDescription>
+                      ✅ Payment verified! You can now complete your financing application by selecting a plan and clicking Submit Sale.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
                 {paymentData.paymentMethod === 'finance' ? (
                   <>
                     <FinancePlanSelector
@@ -1264,18 +1410,20 @@ export function PaymentWorkflow({
                           !paymentData.selectedPlanObject ||
                           isSearchingAccount ||
                           (orderAmount - (paymentData.upfrontPayment || 0) < 250) ||
-                          ((paymentData.upfrontPayment || 0) > 0 && !paymentData.advitalUpfrontPaid)
+                          ((paymentData.upfrontPayment || 0) > 0 && !paymentData.advitalUpfrontPaid) ||
+                          ((paymentData.upfrontPayment || 0) > 0 && paymentData.advitalUpfrontPaid && !invoiceReadyForFinancing)
                         }
                         className={`px-10 h-12 rounded-lg font-black transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2 ${paymentData.selectedPlanObject &&
                           !isSearchingAccount &&
                           (orderAmount - (paymentData.upfrontPayment || 0) >= 250) &&
-                          !((paymentData.upfrontPayment || 0) > 0 && !paymentData.advitalUpfrontPaid)
-                          ? 'bg-slate-900 text-white hover:bg-black shadow-lg shadow-slate-200'
+                          !((paymentData.upfrontPayment || 0) > 0 && !paymentData.advitalUpfrontPaid) &&
+                          !((paymentData.upfrontPayment || 0) > 0 && paymentData.advitalUpfrontPaid && !invoiceReadyForFinancing)
+                          ? 'bg-slate-900 text-white hover:bg-black shadow-lg shadow-lg-200'
                           : 'bg-slate-100 text-slate-400 cursor-not-allowed'
                           }`}
                       >
-                        {isSearchingAccount && <Loader2 className="w-4 h-4 animate-spin" />}
-                        Submit Sale
+                        {(isSearchingAccount || isVerifyingInvoiceStatus) && <Loader2 className="w-4 h-4 animate-spin" />}
+                        {isVerifyingInvoiceStatus ? 'Verifying Payment...' : 'Submit Sale'}
                       </button>
                     </div>
                   </>
