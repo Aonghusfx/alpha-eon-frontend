@@ -604,15 +604,16 @@ export function PaymentWorkflow({
     setInvoiceReadyForFinancing(false);
 
     let pollCount = 0;
+    const maxPolls = 40; // 40 attempts × 3 seconds = 120 seconds (2 minutes)
     const pollInterval = 3000; // 3 seconds
 
     const toastId = toast.loading('⏳ Verifying payment with GHL... This may take 1-2 minutes. Please wait.', {
-      duration: Infinity, // Keep showing until verification complete
+      duration: Infinity, // Keep showing until verification complete or timeout
     });
 
     statusCheckIntervalRef.current = setInterval(async () => {
       pollCount++;
-      console.log(`🔄 Invoice status check attempt ${pollCount}`);
+      console.log(`🔄 Invoice status check attempt ${pollCount}/${maxPolls}`);
 
       const isReady = await checkInvoiceStatus(invoiceId, locationId);
 
@@ -630,8 +631,21 @@ export function PaymentWorkflow({
           id: toastId,
           duration: 5000,
         });
+      } else if (pollCount >= maxPolls) {
+        console.warn('⚠️ Invoice status check timeout (2 minutes) - enabling button anyway');
+        setIsVerifyingInvoiceStatus(false);
+        setInvoiceReadyForFinancing(true); // Enable button after 2 minutes
+        
+        if (statusCheckIntervalRef.current) {
+          clearInterval(statusCheckIntervalRef.current);
+          statusCheckIntervalRef.current = null;
+        }
+
+        toast('⚠️ Payment verification taking longer than expected. You can now proceed with Submit Sale.', {
+          id: toastId,
+          duration: 6000,
+        });
       }
-      // No timeout - will keep polling until verification succeeds
     }, pollInterval);
   };
 
