@@ -571,7 +571,7 @@ export function PaymentWorkflow({
       console.log('🔍 Checking invoice status...', { invoiceId, locationId });
       
       const response = await fetch(
-        `${advitalPortalBaseUrl}/api/check-invoice-status?invoiceId=${invoiceId}&locationId=${locationId}`,
+        `${advitalPortalBaseUrl}/api/invoices/${invoiceId}/status?locationId=${locationId}`,
         {
           method: 'GET',
           headers: {
@@ -604,8 +604,8 @@ export function PaymentWorkflow({
     setInvoiceReadyForFinancing(false);
 
     let pollCount = 0;
-    const maxPolls = 40; // 40 attempts × 3 seconds = 120 seconds (2 minutes)
-    const pollInterval = 3000; // 3 seconds
+    const maxPolls = 24; // 24 attempts × 5 seconds = 120 seconds (2 minutes)
+    const pollInterval = 5000; // 5 seconds
 
     const toastId = toast.loading('⏳ Verifying payment with GHL... This may take 1-2 minutes. Please wait.', {
       duration: Infinity, // Keep showing until verification complete or timeout
