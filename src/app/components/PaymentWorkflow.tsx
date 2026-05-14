@@ -439,7 +439,7 @@ export function PaymentWorkflow({
     // Show verification status if payment is complete but not yet verified
     if ((paymentData.upfrontPayment || 0) > 0 && paymentData.advitalUpfrontPaid && !invoiceReadyForFinancing && currentStep === 3) {
       toast(
-        `⏳ Verifying payment with GHL... This takes 2-5 seconds. The Submit Sale button will be enabled once verified.`,
+        `⏳ Verifying payment with GHL... This may take 1-2 minutes. The Submit Sale button will be enabled once verified.`,
         { id: toastId, icon: '⏳', duration: Infinity }
       );
       return;
@@ -604,16 +604,15 @@ export function PaymentWorkflow({
     setInvoiceReadyForFinancing(false);
 
     let pollCount = 0;
-    const maxPolls = 20; // 20 attempts × 3 seconds = 60 seconds max
     const pollInterval = 3000; // 3 seconds
 
-    const toastId = toast.loading('⏳ Verifying payment with GHL... This may take a few seconds.', {
-      duration: 60000,
+    const toastId = toast.loading('⏳ Verifying payment with GHL... This may take 1-2 minutes. Please wait.', {
+      duration: Infinity, // Keep showing until verification complete
     });
 
     statusCheckIntervalRef.current = setInterval(async () => {
       pollCount++;
-      console.log(`🔄 Invoice status check attempt ${pollCount}/${maxPolls}`);
+      console.log(`🔄 Invoice status check attempt ${pollCount}`);
 
       const isReady = await checkInvoiceStatus(invoiceId, locationId);
 
@@ -631,21 +630,8 @@ export function PaymentWorkflow({
           id: toastId,
           duration: 5000,
         });
-      } else if (pollCount >= maxPolls) {
-        console.warn('⚠️ Invoice status check timeout - allowing user to proceed anyway');
-        setIsVerifyingInvoiceStatus(false);
-        setInvoiceReadyForFinancing(true); // Allow them to proceed after timeout
-        
-        if (statusCheckIntervalRef.current) {
-          clearInterval(statusCheckIntervalRef.current);
-          statusCheckIntervalRef.current = null;
-        }
-
-        toast('⚠️ Payment verification taking longer than expected. Proceeding anyway...', {
-          id: toastId,
-          duration: 5000,
-        });
       }
+      // No timeout - will keep polling until verification succeeds
     }, pollInterval);
   };
 
@@ -1312,7 +1298,7 @@ export function PaymentWorkflow({
                   <Alert className="bg-yellow-50 border-yellow-300 text-yellow-900">
                     <Loader2 className="h-4 w-4 text-yellow-600 animate-spin" />
                     <AlertDescription>
-                      ⏳ Verifying payment with GHL... This typically takes 2-5 seconds. The Submit Sale button will be enabled once verification is complete.
+                      ⏳ Verifying payment with GHL... This may take 1-2 minutes. The Submit Sale button will be enabled once verification is complete.
                     </AlertDescription>
                   </Alert>
                 )}
